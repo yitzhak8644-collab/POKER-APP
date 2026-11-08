@@ -3,10 +3,10 @@ import { formatDateTime, formatGameDate, formatMoney, todayInIsrael } from './fo
 
 describe('format', () => {
   it('formatMoney', () => {
-    expect(formatMoney(50)).toBe('50 ₪')
-    expect(formatMoney(50, { signed: true })).toBe('+50 ₪')
-    expect(formatMoney(-50, { signed: true })).toBe('-50 ₪')
-    expect(formatMoney(0, { signed: true })).toBe('0 ₪')
+    expect(formatMoney(50)).toBe('50\u00A0₪')
+    expect(formatMoney(50, { signed: true })).toBe('+50\u00A0₪')
+    expect(formatMoney(-50, { signed: true })).toBe('-50\u00A0₪')
+    expect(formatMoney(0, { signed: true })).toBe('0\u00A0₪')
   })
 
   it('formatGameDate flips ISO to DD/MM/YYYY', () => {

@@ -6,10 +6,11 @@ import { useGameActions } from '../features/game/actions'
 import { EntryDialogs, type Pending } from '../features/game/EntryDialogs'
 import { LogPanel } from '../features/game/LogPanel'
 import { SettingsPanel } from '../features/game/SettingsPanel'
+import { SettlementPanel } from '../features/game/SettlementPanel'
 import { TablePanel } from '../features/game/TablePanel'
 import { ZeroSumBanner } from '../features/game/ZeroSumBanner'
 import { useGameBundle, useGameRealtime } from '../features/games/hooks'
-import { buildLog, defaultBuyInAmount, deriveGame } from '../features/games/mapping'
+import { buildLog, buildSnapshot, defaultBuyInAmount, deriveGame } from '../features/games/mapping'
 import { toHebrewMessage } from '../lib/errors'
 import { formatGameDate } from '../lib/format'
 
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'table', label: 'שולחן' },
   { id: 'log', label: 'יומן' },
   { id: 'settings', label: 'הגדרות' },
+  { id: 'settle', label: 'סיום' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
 
@@ -114,6 +116,16 @@ export function GamePage() {
           onAddPlayer={actions.addPlayer}
           onRemovePlayer={actions.removePlayer}
           onSetRole={actions.setPlayerRole}
+        />
+      )}
+      {tab === 'settle' && (
+        <SettlementPanel
+          bundle={bundle}
+          result={result}
+          isOwner={isOwner}
+          onCashOut={(playerId, amount) => actions.addTransaction({ gameId: id, playerId, type: 'cash_out', amount })}
+          onVoid={actions.voidTransaction}
+          onCloseGame={() => actions.closeGame(buildSnapshot(result), result.summary ?? '')}
         />
       )}
 

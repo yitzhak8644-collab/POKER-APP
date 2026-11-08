@@ -48,26 +48,26 @@ describe('computeGame — golden example #1 (host + spouse + 3 guests)', () => {
     expect(game.summary).toBe(
       [
         `${R}🃏 *סיכום ערב פוקר*`,
-        `${R}📅 05/11/2026 | 💰 קופת המשחק: ${L}500 ₪${L}`,
+        `${R}📅 05/11/2026 | 💰 קופת המשחק: ${L}500\u00A0₪${L}`,
         '',
         `${R}🔴 *שחקנים במינוס*`,
-        `${R}• A${R}: פוקר ${L}-50 ₪${L}, כניסה ${L}-10 ₪${L} = *${L}-60 ₪${L}*`,
-        `${R}• S${R}: פוקר ${L}-20 ₪${L}, כניסה ${L}-10 ₪${L} = *${L}-30 ₪${L}*`,
+        `${R}• A${R}: פוקר ${L}-50\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}-60\u00A0₪${L}*`,
+        `${R}• S${R}: פוקר ${L}-20\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}-30\u00A0₪${L}*`,
         '',
         `${R}🟢 *שחקנים בפלוס*`,
-        `${R}• H${R}: פוקר ${L}+40 ₪${L}, כניסה ${L}-10 ₪${L}, אירוח ${L}+15 ₪${L} = *${L}+45 ₪${L}*`,
-        `${R}• C${R}: פוקר ${L}+20 ₪${L}, כניסה ${L}-10 ₪${L} = *${L}+10 ₪${L}*`,
+        `${R}• H${R}: פוקר ${L}+40\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}+45\u00A0₪${L}*`,
+        `${R}• C${R}: פוקר ${L}+20\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}+10\u00A0₪${L}*`,
         '',
         `${R}⚪ *שחקנים מאוזנים*`,
-        `${R}• B${R}: פוקר ${L}+10 ₪${L}, כניסה ${L}-10 ₪${L} = *${L}0 ₪${L}*`,
+        `${R}• B${R}: פוקר ${L}+10\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}0\u00A0₪${L}*`,
         '',
-        `${R}🏦 *קופה קבוצתית שנאספה*: ${L}35 ₪${L}`,
+        `${R}🏦 *קופה קבוצתית שנאספה*: ${L}35\u00A0₪${L}`,
         '',
         `${R}💸 *העברות*`,
-        `${R}• A${R} משלם ל-H${R} ${L}45 ₪${L}`,
-        `${R}• S${R} משלם ל-קופת PayBox${R} ${L}30 ₪${L}`,
-        `${R}• A${R} משלם ל-C${R} ${L}10 ₪${L}`,
-        `${R}• A${R} משלם ל-קופת PayBox${R} ${L}5 ₪${L}`,
+        `${R}• A${R} משלם ל-H${R} ${L}45\u00A0₪${L}`,
+        `${R}• S${R} משלם ל-קופת PayBox${R} ${L}30\u00A0₪${L}`,
+        `${R}• A${R} משלם ל-C${R} ${L}10\u00A0₪${L}`,
+        `${R}• A${R} משלם ל-קופת PayBox${R} ${L}5\u00A0₪${L}`,
       ].join('\n'),
     )
   })
@@ -95,8 +95,8 @@ describe('computeGame — golden example #2 (neutral venue, no host)', () => {
 
   it('the summary has no hosting line and shows the 40 NIS fund', () => {
     expect(game.summary).not.toContain('אירוח')
-    expect(game.summary).toContain(`${R}🏦 *קופה קבוצתית שנאספה*: ${L}40 ₪${L}`)
-    expect(game.summary).toContain(`קופת המשחק: ${L}400 ₪${L}`)
+    expect(game.summary).toContain(`${R}🏦 *קופה קבוצתית שנאספה*: ${L}40\u00A0₪${L}`)
+    expect(game.summary).toContain(`קופת המשחק: ${L}400\u00A0₪${L}`)
   })
 })
 
@@ -115,7 +115,7 @@ describe('computeGame — edge cases', () => {
     expect(game.ready).toBe(true)
     expect(game.players.find((p) => p.id === 'H')?.obligation).toBe(-25)
     expect(game.transfers).toEqual([{ from: 'H', to: PAYBOX_ID, amount: 25 }])
-    expect(game.summary).toContain(`אירוח ${L}+15 ₪${L} = *${L}-25 ₪${L}*`)
+    expect(game.summary).toContain(`אירוח ${L}+15\u00A0₪${L} = *${L}-25\u00A0₪${L}*`)
   })
 
   it('a busted player (cash-out 0) is valid, not missing', () => {

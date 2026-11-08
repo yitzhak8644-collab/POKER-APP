@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PAYBOX_ID } from '../../lib/finance'
-import { buildLog, defaultBuyInAmount, deriveGame, FALLBACK_BUY_IN, OWNER_LABEL, playedOnDate, toEnginePlayers, UNKNOWN_ACTOR_LABEL } from './mapping'
+import { buildLog, buildSnapshot, defaultBuyInAmount, deriveGame, FALLBACK_BUY_IN, OWNER_LABEL, playedOnDate, toEnginePlayers, UNKNOWN_ACTOR_LABEL } from './mapping'
 import type { GameBundle, GamePlayerRow, TransactionRow } from './types'
 
 const seat = (id: string, name: string, role: GamePlayerRow['role'] = 'guest', userId: string | null = null): GamePlayerRow => ({
@@ -126,5 +126,15 @@ describe('defaultBuyInAmount', () => {
   it('ignores voided buy-ins and falls back when there are none', () => {
     expect(defaultBuyInAmount([tx('A', 'buy_in', 70, { voided_at: 'x' })])).toBe(FALLBACK_BUY_IN)
     expect(defaultBuyInAmount([])).toBe(FALLBACK_BUY_IN)
+  })
+})
+
+describe('buildSnapshot', () => {
+  it('keeps the numbers that were settled (and is JSON-serialisable for the RPC)', () => {
+    const result = deriveGame(golden())
+    const snapshot = JSON.parse(JSON.stringify(buildSnapshot(result)))
+    expect(snapshot).toMatchObject({ version: 1, pot: 550, fees: { groupFund: 35, hostPayout: 15 } })
+    expect(snapshot.transfers).toHaveLength(4)
+    expect(snapshot.players).toHaveLength(5)
   })
 })

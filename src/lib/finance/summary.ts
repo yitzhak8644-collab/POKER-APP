@@ -29,8 +29,9 @@ export function formatDate(date: Date): string {
   return `${part('day')}/${part('month')}/${part('year')}`
 }
 
-const money = (n: number): string => `${LRM}${n} ₪${LRM}`
-const signed = (n: number): string => `${LRM}${n > 0 ? '+' : ''}${n} ₪${LRM}`
+const NBSP = '\u00A0' // keeps a number and its ₪ on the same line when WhatsApp wraps
+const money = (n: number): string => `${LRM}${n}${NBSP}₪${LRM}`
+const signed = (n: number): string => `${LRM}${n > 0 ? '+' : ''}${n}${NBSP}₪${LRM}`
 
 function playerLine(p: SettledPlayer): string {
   const parts = [`פוקר ${signed(p.net)}`, `כניסה ${signed(-ENTRY_FEE)}`]

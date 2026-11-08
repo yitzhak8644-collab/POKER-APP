@@ -37,6 +37,18 @@ export function deriveGame(bundle: GameBundle): GameResult {
   )
 }
 
+/** What is stored with the closed game (the server re-checks the numbers itself). */
+export function buildSnapshot(result: GameResult): Record<string, unknown> {
+  return {
+    version: 1,
+    pot: result.pot,
+    fees: result.fees,
+    check: result.check,
+    players: result.players,
+    transfers: result.transfers,
+  }
+}
+
 /** The most common active buy-in amount at this table (a sensible default for Buy-in / Rebuy). */
 export function defaultBuyInAmount(transactions: readonly TransactionRow[]): number {
   const counts = new Map<number, number>()

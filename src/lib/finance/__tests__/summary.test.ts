@@ -39,15 +39,15 @@ describe('buildWhatsAppSummary', () => {
     const text = build([sp('a', -10)], [], 10, 300)
     const lines = text.split('\n')
     expect(lines[0]).toBe(`${R}🃏 *סיכום ערב פוקר*`)
-    expect(lines[1]).toBe(`${R}📅 05/11/2026 | 💰 קופת המשחק: ${L}300 ₪${L}`)
-    expect(text).toContain(`${R}🏦 *קופה קבוצתית שנאספה*: ${L}10 ₪${L}`)
+    expect(lines[1]).toBe(`${R}📅 05/11/2026 | 💰 קופת המשחק: ${L}300\u00A0₪${L}`)
+    expect(text).toContain(`${R}🏦 *קופה קבוצתית שנאספה*: ${L}10\u00A0₪${L}`)
   })
 
   it('losers: shows poker balance and the 10 NIS entry fee', () => {
     const text = build([sp('a', -50)])
     expect(text).toContain(`${R}🔴 *שחקנים במינוס*`)
     expect(text).toContain(
-      `${R}• a${R}: פוקר ${L}-50 ₪${L}, כניסה ${L}-10 ₪${L} = *${L}-60 ₪${L}*`,
+      `${R}• a${R}: פוקר ${L}-50\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}-60\u00A0₪${L}*`,
     )
   })
 
@@ -55,7 +55,7 @@ describe('buildWhatsAppSummary', () => {
     const text = build([sp('h', 40, 15)])
     expect(text).toContain(`${R}🟢 *שחקנים בפלוס*`)
     expect(text).toContain(
-      `${R}• h${R}: פוקר ${L}+40 ₪${L}, כניסה ${L}-10 ₪${L}, אירוח ${L}+15 ₪${L} = *${L}+45 ₪${L}*`,
+      `${R}• h${R}: פוקר ${L}+40\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}+45\u00A0₪${L}*`,
     )
   })
 
@@ -64,7 +64,7 @@ describe('buildWhatsAppSummary', () => {
     expect(text).toContain('שחקנים במינוס')
     expect(text).not.toContain('שחקנים בפלוס')
     expect(text).toContain(
-      `${R}• h${R}: פוקר ${L}-30 ₪${L}, כניסה ${L}-10 ₪${L}, אירוח ${L}+15 ₪${L} = *${L}-25 ₪${L}*`,
+      `${R}• h${R}: פוקר ${L}-30\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}-25\u00A0₪${L}*`,
     )
   })
 
@@ -77,7 +77,7 @@ describe('buildWhatsAppSummary', () => {
     expect(text).toContain('⚪ *שחקנים מאוזנים*')
     expect(text).not.toContain('שחקנים במינוס')
     expect(text).not.toContain('שחקנים בפלוס')
-    expect(text).toContain(`= *${L}0 ₪${L}*`)
+    expect(text).toContain(`= *${L}0\u00A0₪${L}*`)
   })
 
   it('omits empty sections (no losers, no winners, no balanced, no transfers)', () => {
@@ -111,7 +111,7 @@ describe('buildWhatsAppSummary', () => {
       ],
     )
     expect(text).toContain(`${R}💸 *העברות*`)
-    expect(text).toContain(`${R}• a${R} משלם ל-b${R} ${L}30 ₪${L}`)
-    expect(text).toContain(`${R}• a${R} משלם ל-קופת PayBox${R} ${L}30 ₪${L}`)
+    expect(text).toContain(`${R}• a${R} משלם ל-b${R} ${L}30\u00A0₪${L}`)
+    expect(text).toContain(`${R}• a${R} משלם ל-קופת PayBox${R} ${L}30\u00A0₪${L}`)
   })
 })

@@ -1,7 +1,8 @@
 const TZ = 'Asia/Jerusalem'
 
+/** Non-breaking space between the number and ₪ so an amount never wraps apart. */
 export const formatMoney = (n: number, opts: { signed?: boolean } = {}): string =>
-  `${opts.signed && n > 0 ? '+' : ''}${n} ₪`
+  `${opts.signed && n > 0 ? '+' : ''}${n}\u00A0₪`
 
 /** `2026-11-05` -> `05/11/2026` (pure string work, no timezone surprises). */
 export function formatGameDate(playedOn: string): string {
