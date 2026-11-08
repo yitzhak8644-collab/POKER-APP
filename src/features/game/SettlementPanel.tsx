@@ -143,7 +143,8 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
             <p className="text-sm text-slate-400">
               קופה קבוצתית שנאספה: <Money value={result.fees.groupFund} />
             </p>
-            <PayBoxLink label="תשלום לקופה בקבוצת PayBox" />
+            <p className="text-sm text-slate-300">מסדרים את התשלומים בקבוצת ה-PayBox:</p>
+            <PayBoxLink />
           </section>
 
           <section className="space-y-2">
