@@ -14,8 +14,9 @@ export function useGameActions(gameId: string) {
         try {
           await fn(...args)
         } finally {
-          // also after a failure: e.g. when a seat was just taken, show who took it
-          await refresh()
+          // Also after a failure (e.g. a seat was just taken: show who took it). Not awaited, so the UI
+          // (dialogs, buttons) reacts as soon as the server has answered; the data follows a moment later.
+          void refresh()
         }
       }
     return {

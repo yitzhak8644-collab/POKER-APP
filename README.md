@@ -36,13 +36,21 @@ cp .env.example .env.local   # ממלאים URL ו-anon key של פרויקט ה
 npm run dev
 ```
 
-### הקמת Supabase (פעם אחת)
+### Supabase
 
-1. יוצרים פרויקט ב-Supabase ומריצים **את כל הקבצים ב-`supabase/migrations/` לפי הסדר** (`0001_init.sql` ואחריו `0002_seats.sql`) ב-SQL Editor, או `supabase db push` שמריץ את שניהם. מי שכבר הריץ את `0001` מריץ רק את `0002` מעליו. בלי `0002` לשונית הכיסאות לא תעבוד.
-2. **Authentication → Providers → Google**: מפעילים ומזינים Client ID ו-Secret מ-Google Cloud Console (OAuth client מסוג Web).
-3. ב-Google Cloud מוסיפים ל-Authorized redirect URIs את `https://<project>.supabase.co/auth/v1/callback`.
-4. **Authentication → URL Configuration**: מוסיפים ל-Redirect URLs את `http://localhost:5173` ואת כתובת ה-Vercel שלכם.
-5. ה-anon key ו-URL נמצאים ב-Project Settings → API.
+הפרויקט **`poker-tracker`** כבר הוקם (`cbhsynqbxurdqqtzicqw`, אזור eu-central-1) והמיגרציות `0001_init` ו-`0002_seats` הוחלו עליו. הערכים הציבוריים ל-`.env.local` וגם ל-Vercel:
+
+- `VITE_SUPABASE_URL` = `https://cbhsynqbxurdqqtzicqw.supabase.co`
+- `VITE_SUPABASE_ANON_KEY` = ה-publishable key של הפרויקט (Project Settings → API; מתחיל ב-`sb_publishable_`). מפתח זה נועד להיות גלוי באפליקציה. **לעולם לא** לשים בקוד או ב-Vercel את ה-`service_role`, את סיסמת מסד הנתונים או את ה-Client Secret של Google.
+
+שני צעדים שנשארו ידניים (אי אפשר לבצע אותם מחוץ לדשבורד):
+
+1. **כניסה עם Google.** ב-Google Cloud Console יוצרים OAuth client מסוג Web ומוסיפים ל-Authorized redirect URIs את `https://cbhsynqbxurdqqtzicqw.supabase.co/auth/v1/callback`. אחר כך ב-Supabase: Authentication → Providers → Google, מפעילים ומזינים Client ID ו-Client Secret.
+2. **כתובות האפליקציה.** ב-Supabase: Authentication → URL Configuration, קובעים Site URL ל-https של האתר ב-Vercel, ומוסיפים ל-Redirect URLs גם אותו וגם `http://localhost:5173`.
+
+**למה יש `.github/workflows/keepalive.yml`:** פרויקט חינמי של Supabase מושהה אחרי כשבוע בלי פעילות, והמשחק שבועי. ה-workflow שולח בקשה קלה פעמיים בשבוע כדי שהפרויקט לא יושהה בין משחקים.
+
+להקמה מחדש בפרויקט אחר: מריצים את כל הקבצים ב-`supabase/migrations/` לפי הסדר (`0001_init.sql` ואחריו `0002_seats.sql`) ב-SQL Editor, או `supabase db push`.
 
 ### קישור לקבוצת PayBox
 

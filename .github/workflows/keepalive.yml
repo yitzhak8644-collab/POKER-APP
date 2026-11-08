@@ -1,0 +1,26 @@
+name: Keep Supabase awake
+
+# A free Supabase project is paused after about a week without activity, and the game is weekly.
+# This pings the API twice a week so the project is never paused between games.
+# The URL and the publishable key are public by design (they ship inside the app); no secret is used.
+on:
+  schedule:
+    - cron: '17 6 * * 1,4' # Monday and Thursday, 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the poker-tracker API
+        env:
+          SUPABASE_URL: https://cbhsynqbxurdqqtzicqw.supabase.co
+          SUPABASE_KEY: sb_publishable_pO1X6jBRJUPz6Ed9zbOXuA_Zsdzowht
+        run: |
+          code=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/games?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY")
+          echo "HTTP $code"
+          # 401 is expected (the anon role has no table access) and still reaches the database,
+          # which is what counts as activity. Fail only if the API is unreachable or broken.
+          if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then exit 1; fi

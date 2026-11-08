@@ -16,12 +16,17 @@ export const useGameBundle = (gameId: string) =>
 
 type Payload = RealtimePostgresChangesPayload<Record<string, unknown>>
 
+const LATE_REFETCH_MS = 4000
+
 /**
  * Keeps the cached game in sync through one Realtime channel.
  * - INSERT/UPDATE are filtered by game_id and RLS applies, so only members receive them.
  * - Postgres Changes cannot filter DELETE (and RLS is not applied; `old` carries only the PK),
  *   so game_players deletes arrive unfiltered and are applied only if the id is in the cache.
  * - Every (re)subscribe and every return to the foreground refetches, closing any gap.
+ * - Realtime's database subscription is registered a moment after SUBSCRIBED (and on a cold project it
+ *   can take a few seconds), so we also refetch when the server confirms it ("system" message) and once
+ *   more shortly after: a change committed in that window is never missed.
  */
 export function useGameRealtime(gameId: string): void {
   const queryClient = useQueryClient()
@@ -40,6 +45,7 @@ export function useGameRealtime(gameId: string): void {
       if (needsRefetch(table, newRow)) refetch()
     }
 
+    let lateRefetch: ReturnType<typeof setTimeout> | undefined
     const byGame = `game_id=eq.${gameId}`
     const channel = supabase
       .channel(`game:${gameId}`)
@@ -49,8 +55,14 @@ export function useGameRealtime(gameId: string): void {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'game_players' }, handle('game_players'))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions', filter: byGame }, handle('transactions'))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'transactions', filter: byGame }, handle('transactions'))
+      .on('system', {}, (payload: { extension?: string; status?: string }) => {
+        if (payload.extension === 'postgres_changes' && payload.status === 'ok') refetch()
+      })
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') refetch()
+        if (status === 'SUBSCRIBED') {
+          refetch()
+          lateRefetch = setTimeout(refetch, LATE_REFETCH_MS)
+        }
       })
 
     const onVisible = () => {
@@ -59,6 +71,7 @@ export function useGameRealtime(gameId: string): void {
     document.addEventListener('visibilitychange', onVisible)
 
     return () => {
+      clearTimeout(lateRefetch)
       document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
     }
