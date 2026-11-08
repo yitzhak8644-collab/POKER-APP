@@ -3,6 +3,7 @@ import type { GameBundle, GamePlayerRow, TransactionRow } from './types'
 
 export const OWNER_LABEL = 'מנהל השולחן'
 export const UNKNOWN_ACTOR_LABEL = 'שחקן'
+export const FALLBACK_BUY_IN = 100
 
 export function toLedgerRows(transactions: readonly TransactionRow[]): LedgerRow[] {
   return transactions.map((t) => ({
@@ -34,6 +35,23 @@ export function deriveGame(bundle: GameBundle): GameResult {
     toEnginePlayers(bundle.players, bundle.transactions),
     playedOnDate(bundle.game.played_on),
   )
+}
+
+/** The most common active buy-in amount at this table (a sensible default for Buy-in / Rebuy). */
+export function defaultBuyInAmount(transactions: readonly TransactionRow[]): number {
+  const counts = new Map<number, number>()
+  for (const t of transactions) {
+    if (t.type === 'buy_in' && t.voided_at === null) counts.set(t.amount, (counts.get(t.amount) ?? 0) + 1)
+  }
+  let best = FALLBACK_BUY_IN
+  let bestCount = 0
+  for (const [amount, count] of counts) {
+    if (count > bestCount) {
+      best = amount
+      bestCount = count
+    }
+  }
+  return best
 }
 
 export interface LogEntry {

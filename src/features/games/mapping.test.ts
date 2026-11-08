@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PAYBOX_ID } from '../../lib/finance'
-import { buildLog, deriveGame, OWNER_LABEL, playedOnDate, toEnginePlayers, UNKNOWN_ACTOR_LABEL } from './mapping'
+import { buildLog, defaultBuyInAmount, deriveGame, FALLBACK_BUY_IN, OWNER_LABEL, playedOnDate, toEnginePlayers, UNKNOWN_ACTOR_LABEL } from './mapping'
 import type { GameBundle, GamePlayerRow, TransactionRow } from './types'
 
 const seat = (id: string, name: string, role: GamePlayerRow['role'] = 'guest', userId: string | null = null): GamePlayerRow => ({
@@ -114,5 +114,17 @@ describe('buildLog', () => {
       tx('B', 'buy_in', 100, { created_at: '2026-11-05T19:00:00Z', id: 'b' }),
     ]
     expect(buildLog(b).map((e) => e.id)).toEqual(['b', 'a'])
+  })
+})
+
+describe('defaultBuyInAmount', () => {
+  it('is the most common active buy-in amount', () => {
+    const txs = [tx('A', 'buy_in', 50), tx('B', 'buy_in', 100), tx('C', 'buy_in', 100), tx('A', 'rebuy', 500)]
+    expect(defaultBuyInAmount(txs)).toBe(100)
+  })
+
+  it('ignores voided buy-ins and falls back when there are none', () => {
+    expect(defaultBuyInAmount([tx('A', 'buy_in', 70, { voided_at: 'x' })])).toBe(FALLBACK_BUY_IN)
+    expect(defaultBuyInAmount([])).toBe(FALLBACK_BUY_IN)
   })
 })

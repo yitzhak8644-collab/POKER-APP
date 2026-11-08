@@ -5,6 +5,7 @@ import { RequireAuth } from './features/auth/RequireAuth'
 import { isSupabaseConfigured } from './lib/supabase'
 import { GamePage } from './pages/GamePage'
 import { HomePage } from './pages/HomePage'
+import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { SetupNotice } from './pages/SetupNotice'
 
@@ -23,6 +24,7 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/g/:id" element={<GamePage />} />
+              <Route path="/join/:code" element={<JoinPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
