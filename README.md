@@ -1,0 +1,66 @@
+# פוקר טראקר
+
+PWA בעברית (RTL) לערב פוקר ביתי שבועי: רישום Buy-in / Rebuy / Cash-out בזמן אמת בין כמה משתמשים, בדיקת מאזן אפס-סכום, דמי כניסה 10 ₪ לשחקן, מינימום העברות בין השחקנים, והודעת סיכום לוואטסאפ.
+
+Vite + React 18 + TypeScript + Tailwind · Supabase (Postgres, Auth עם Google, Realtime) · Vercel.
+
+## כללי הכסף
+
+- **מאזן פוקר** = Cash-out − (Buy-in + Rebuy). סכום המאזנים חייב להיות בדיוק 0, ואחרת מוצג באנר אדום מיד.
+- **דמי כניסה: 10 ₪ לכל שחקן.**
+  - יש מארח: אורח משלם 5 ₪ לקופה הקבוצתית (PayBox) ו-5 ₪ למארח. מארח ובן/בת זוג משלמים 10 ₪ לקופה. המארח מקבל 5 ₪ × מספר האורחים.
+  - **אין מארח** (מקום ניטרלי): כולם משלמים 10 ₪ וכל הסכום (10 × מספר השחקנים) הולך לקופה. אין דמי אירוח.
+- **חשבון סופי** = מאזן פוקר − 10 ₪ (+ תשלום אירוח למארח). סכום החשבונות הוא `−קופה קבוצתית`, ולכן הקופה משתתפת בהסדר כנושה וירטואלי.
+- **סגירת משחק**: רק מנהל השולחן, אחרי אישור מפורש, ורק כשהמאזן מתאפס ולכל שחקן יש Cash-out. הכלל נאכף גם בשרת (`close_game`).
+- **Rebuy**: לפני הרישום מוצגת אזהרה חוסמת: קודם רושמים באפליקציה ורק אז לוקחים ז׳יטונים.
+
+כל הכסף הוא מספרים שלמים בש"ח.
+
+## מבנה
+
+```
+src/lib/finance/        מנוע הכספים: פונקציות טהורות, כיסוי טסטים 100%
+src/features/games/     גישה ל-Supabase, מיפוי שורות למנוע, סנכרון Realtime
+src/features/game/      מסכי המשחק (שולחן, יומן, הגדרות, סיום)
+supabase/migrations/    סכמה, RLS, RPCs, Realtime
+supabase/tests/         טסטי SQL על Postgres מקומי
+```
+
+## התקנה והפעלה
+
+```bash
+npm install
+cp .env.example .env.local   # ממלאים URL ו-anon key של פרויקט ה-Supabase
+npm run dev
+```
+
+### הקמת Supabase (פעם אחת)
+
+1. יוצרים פרויקט ב-Supabase ומריצים את `supabase/migrations/0001_init.sql` (SQL Editor, או `supabase db push`).
+2. **Authentication → Providers → Google**: מפעילים ומזינים Client ID ו-Secret מ-Google Cloud Console (OAuth client מסוג Web).
+3. ב-Google Cloud מוסיפים ל-Authorized redirect URIs את `https://<project>.supabase.co/auth/v1/callback`.
+4. **Authentication → URL Configuration**: מוסיפים ל-Redirect URLs את `http://localhost:5173` ואת כתובת ה-Vercel שלכם.
+5. ה-anon key ו-URL נמצאים ב-Project Settings → API.
+
+### פריסה ל-Vercel
+
+מחברים את ה-repo, מגדירים `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`, והפריסה מזהה Vite אוטומטית. `vercel.json` מגדיר rewrite ל-SPA ו-headers ל-service worker.
+
+## בדיקות
+
+```bash
+npm run lint && npm run typecheck
+npm run test:coverage   # Vitest; סף 100% על src/lib/finance
+npm run test:sql        # מיגרציה + RLS + RPCs על Postgres מקומי (לא נוגע בפרויקט Supabase אמיתי)
+npm run build
+```
+
+`test:sql` דורש שרת PostgreSQL מקומי. הוא יוצר מסד נתונים זמני, מדמה את תפקידי Supabase (`anon`, `authenticated`) ו-`auth.uid()`, ומריץ את הטסטים, כולל בדיקת race בין שתי sessions (קניה מאוחרת מול סגירת משחק).
+
+## אבטחה בקצרה
+
+- RLS בכל הטבלאות, `anon` ללא גישה. הרשאות מינימליות ברמת עמודה.
+- כתיבות רגישות הן RPC (`create_game`, `join_game`, `set_player_role`, `void_transaction`, `close_game`) עם `search_path` ריק.
+- הספר (`transactions`) הוא append-only: תיקון = ביטול והזנה מחדש. משחק סגור נעול לכתיבה, גם מול race.
+- `profiles` נקראים רק ע"י הבעלים; שמות ואווטארים של שחקנים נשמרים ב-`game_players`.
+- Realtime: אירועי DELETE לא ניתנים לסינון ו-RLS לא חל עליהם, לכן מחיקות של `game_players` מטופלות בלקוח לפי `id` בלבד.
