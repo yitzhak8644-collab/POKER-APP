@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { GamePlayerRow } from '../games/types'
-import { MAX_SEATS, occupantsBySeat, playerOfUser, SEAT_ANCHORS, seatPositions, TABLE_W, unseatedPlayers } from './seats'
+import {
+  CUP_HOLDERS,
+  MAX_SEATS,
+  occupantsBySeat,
+  playerOfUser,
+  R_RAIL,
+  SEAT_ANCHORS,
+  seatPositions,
+  STRAIGHT,
+  TABLE_W,
+  unseatedPlayers,
+  Y_BOTTOM,
+  Y_TOP,
+} from './seats'
 
 const row = (id: string, seat: number | null, userId: string | null = null): GamePlayerRow => ({
   id, game_id: 'g', user_id: userId, display_name: id, avatar_url: null, role: 'guest', seat, created_by: 'u', created_at: 't',
@@ -52,16 +65,52 @@ describe('seatPositions (stadium table: 4 + 4 on the long sides, 1 at each end)'
     }
   })
 
-  it('leaves room for a 54px seat button between neighbours on a 17rem-wide map', () => {
-    const scale = (17 * 16) / TABLE_W // table units -> px
+  it('the seats next to the ends sit on the curves, two seats on each straight side', () => {
+    const anchor = (seat: number) => SEAT_ANCHORS[seat - 1]!
+    for (const seat of [2, 10]) expect(anchor(seat).y, `seat ${seat}`).toBeLessThan(Y_TOP)
+    for (const seat of [5, 7]) expect(anchor(seat).y, `seat ${seat}`).toBeGreaterThan(Y_BOTTOM)
+    for (const seat of [3, 4, 8, 9]) {
+      expect(anchor(seat).y, `seat ${seat}`).toBeGreaterThanOrEqual(Y_TOP)
+      expect(anchor(seat).y, `seat ${seat}`).toBeLessThanOrEqual(Y_BOTTOM)
+    }
+  })
+
+  it('the table is about as long as the real one (rail length is 1.7 to 2.1 times its width)', () => {
+    const ratio = (STRAIGHT + 2 * R_RAIL) / (2 * R_RAIL)
+    expect(ratio).toBeGreaterThan(1.7)
+    expect(ratio).toBeLessThan(2.1)
+  })
+
+  it('seats are evenly spaced round the table', () => {
+    const gaps = SEAT_ANCHORS.map((a, i) => {
+      const b = SEAT_ANCHORS[(i + 1) % MAX_SEATS]!
+      return Math.hypot(a.x - b.x, a.y - b.y)
+    })
+    // straight-line gaps differ a little between curve and straight parts, but never by much
+    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThan(12)
+    expect(Math.min(...gaps)).toBeGreaterThan(75)
+  })
+
+  it('every cup holder sits on the rail next to its seat', () => {
+    expect(CUP_HOLDERS).toHaveLength(MAX_SEATS)
+    CUP_HOLDERS.forEach((cup, i) => {
+      const seat = SEAT_ANCHORS[i]!
+      expect(cup.seat).toBe(seat.seat)
+      expect(Math.hypot(cup.x - seat.x, cup.y - seat.y)).toBeGreaterThan(30) // between the seat and the felt
+      expect(Math.hypot(cup.x - seat.x, cup.y - seat.y)).toBeLessThan(45)
+    })
+  })
+
+  it('leaves room for a 58px seat button between neighbours on a 20rem-wide map', () => {
+    const scale = (20 * 16) / TABLE_W // table units -> px
     for (let i = 0; i < SEAT_ANCHORS.length; i++) {
       for (let j = i + 1; j < SEAT_ANCHORS.length; j++) {
         const a = SEAT_ANCHORS[i]!
         const b = SEAT_ANCHORS[j]!
         const dx = (a.x - b.x) * scale
         const dy = (a.y - b.y) * scale
-        // buttons are 64px wide and ~54px tall: they overlap only if both gaps are smaller than that
-        expect(Math.abs(dx) >= 64 || Math.abs(dy) >= 54, `seats ${a.seat} and ${b.seat} overlap`).toBe(true)
+        // buttons are 64px wide and up to 58px tall (the top seat has its name above): they overlap only if both gaps are smaller than that
+        expect(Math.abs(dx) >= 64 || Math.abs(dy) >= 58, `seats ${a.seat} and ${b.seat} overlap`).toBe(true)
       }
     }
   })

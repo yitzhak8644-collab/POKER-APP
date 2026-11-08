@@ -58,7 +58,7 @@ export function SeatMap({ players, userId, isOwner, canWrite, onSetSeat }: Props
 
   return (
     <section className="space-y-3">
-      <div className="relative mx-auto aspect-[300/560] w-full max-w-[17rem]">
+      <div className="relative mx-auto aspect-[300/416] w-full max-w-[20rem]">
         <TableArt occupied={occupants.size} total={POSITIONS.length} />
         {POSITIONS.map(({ seat, x, y }) => {
           const occupant = occupants.get(seat)
@@ -70,9 +70,10 @@ export function SeatMap({ players, userId, isOwner, canWrite, onSetSeat }: Props
               disabled={!interactive(seat)}
               aria-label={`כיסא ${seat} · ${occupant ? occupant.display_name : 'פנוי'}`}
               onClick={() => onTap(seat)}
-              // the avatar circle (40px) is centred on the seat anchor, the name hangs below it
-              style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -20px)' }}
-              className="absolute flex w-16 flex-col items-center gap-0.5 disabled:cursor-default"
+              // the avatar circle (40px) is centred on the seat anchor; the name hangs below it,
+              // except on the top end seat where it goes above, clear of the rail and its cup holder
+              style={{ left: `${x}%`, top: `${y}%`, transform: `translate(-50%, ${seat === 1 ? -38 : -20}px)` }}
+              className={`absolute flex w-16 items-center gap-0.5 disabled:cursor-default ${seat === 1 ? 'flex-col-reverse' : 'flex-col'}`}
             >
               {occupant ? (
                 <span className={`rounded-full ${mine ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950' : ''}`}>

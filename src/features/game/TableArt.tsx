@@ -1,24 +1,24 @@
-import { SEAT_ANCHORS, TABLE_H, TABLE_W } from './seats'
+import { CUP_HOLDERS, CX, R_RAIL, STRAIGHT, TABLE_H, TABLE_W, Y_TOP } from './seats'
 
-/** Cup holder next to a seat: on the padded rail, facing the player. */
-const cupHolder = (seat: number, x: number, y: number): { cx: number; cy: number } => {
-  if (seat === 1) return { cx: 150, cy: 80 }
-  if (seat === 6) return { cx: 150, cy: 480 }
-  return { cx: x < 150 ? 88 : 212, cy: y }
-}
+/** A stadium-shaped rect inset from the outer edge of the rail. */
+const stadium = (inset: number) => ({
+  x: CX - R_RAIL + inset,
+  y: Y_TOP - R_RAIL + inset,
+  width: 2 * (R_RAIL - inset),
+  height: STRAIGHT + 2 * (R_RAIL - inset),
+  rx: R_RAIL - inset,
+})
+
+const MID_Y = Y_TOP + STRAIGHT / 2
 
 /**
- * The table seen from above, drawn after our real one: a long "stadium" shape, black padded rail with
- * steel cup holders, a lavender felt band, a black centre with card slots, and a blue LED line.
+ * The table seen from above, drawn after our real one: a short "stadium" with a black padded rail and a
+ * steel cup holder at every seat, a lavender felt band, a black centre with card slots, and a blue LED line.
  */
 export function TableArt({ occupied, total }: { occupied: number; total: number }) {
+  const black = stadium(40)
   return (
-    <svg
-      viewBox={`0 0 ${TABLE_W} ${TABLE_H}`}
-      aria-hidden="true"
-      className="absolute inset-0 size-full"
-      role="presentation"
-    >
+    <svg viewBox={`0 0 ${TABLE_W} ${TABLE_H}`} aria-hidden="true" className="absolute inset-0 size-full" role="presentation">
       <defs>
         <pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="12" height="12" fill="#6a5f80" />
@@ -38,46 +38,43 @@ export function TableArt({ occupied, total }: { occupied: number; total: number 
       </defs>
 
       {/* padded rail */}
-      <rect x="78" y="70" width="144" height="420" rx="72" fill="#14161c" stroke="#05060a" strokeWidth="3" />
+      <rect {...stadium(0)} fill="#14161c" stroke="#05060a" strokeWidth="3" />
       {/* lavender felt band */}
-      <rect x="98" y="90" width="104" height="380" rx="52" fill="url(#felt)" />
+      <rect {...stadium(20)} fill="url(#felt)" />
       {/* blue LED line along the inside of the rail */}
-      <rect x="96" y="88" width="108" height="384" rx="54" fill="none" stroke="#3b82f6" strokeWidth="2.5" filter="url(#led)" />
+      <rect {...stadium(18)} fill="none" stroke="#3b82f6" strokeWidth="2.5" filter="url(#led)" />
       {/* black playing area */}
-      <rect x="118" y="108" width="64" height="344" rx="32" fill="#0a0a0f" />
+      <rect {...black} fill="#0a0a0f" />
 
       {/* community-card slots, like the printed ones on the real table */}
-      {[200, 224, 300, 324].map((y) => (
-        <rect key={y} x="132" y={y} width="36" height="16" rx="2" fill="none" stroke="#e5e7eb" strokeOpacity="0.55" strokeWidth="1.2" />
+      {[-52, -30, 22, 44].map((dy) => (
+        <rect key={dy} x={CX - 18} y={MID_Y + dy} width="36" height="16" rx="2" fill="none" stroke="#e5e7eb" strokeOpacity="0.55" strokeWidth="1.2" />
       ))}
       {/* a spade and a couple of chips as table art */}
       <path
         fill="#e5e7eb"
         fillOpacity="0.7"
-        transform="translate(150 140) scale(0.09) translate(-256 -256)"
+        transform={`translate(${CX} ${black.y + 22}) scale(0.075) translate(-256 -256)`}
         d="M256 140C204 200 158 232 158 284c0 34 27 52 54 52 18 0 32-7 40-19l-8 64h24l-8-64c8 12 22 19 40 19 27 0 54-18 54-52 0-52-46-84-98-144z"
       />
-      <circle cx="140" cy="420" r="11" fill="#1f2937" stroke="#e5e7eb" strokeOpacity="0.6" strokeDasharray="4 3" />
-      <circle cx="158" cy="424" r="11" fill="#b8860b" stroke="#fde68a" strokeOpacity="0.7" strokeDasharray="4 3" />
+      <circle cx={CX - 10} cy={black.y + black.height - 24} r="10" fill="#1f2937" stroke="#e5e7eb" strokeOpacity="0.6" strokeDasharray="4 3" />
+      <circle cx={CX + 8} cy={black.y + black.height - 20} r="10" fill="#b8860b" stroke="#fde68a" strokeOpacity="0.7" strokeDasharray="4 3" />
 
       {/* seat counter in the middle of the table */}
-      <text x="150" y="268" textAnchor="middle" fill="#a7f3d0" fontSize="15" fontWeight="600">
+      <text x={CX} y={MID_Y + 2} textAnchor="middle" fill="#a7f3d0" fontSize="15" fontWeight="600">
         {occupied}/{total}
       </text>
-      <text x="150" y="286" textAnchor="middle" fill="#a7f3d0" fillOpacity="0.8" fontSize="10">
+      <text x={CX} y={MID_Y + 17} textAnchor="middle" fill="#a7f3d0" fillOpacity="0.8" fontSize="10">
         תפוסים
       </text>
 
       {/* steel cup holders, one per seat */}
-      {SEAT_ANCHORS.map(({ seat, x, y }) => {
-        const { cx, cy } = cupHolder(seat, x, y)
-        return (
-          <g key={seat}>
-            <circle cx={cx} cy={cy} r="9" fill="url(#steel)" stroke="#1f2937" strokeWidth="1" />
-            <circle cx={cx} cy={cy} r="5.5" fill="#374151" />
-          </g>
-        )
-      })}
+      {CUP_HOLDERS.map(({ seat, x, y }) => (
+        <g key={seat}>
+          <circle cx={x} cy={y} r="9" fill="url(#steel)" stroke="#1f2937" strokeWidth="1" />
+          <circle cx={x} cy={y} r="5.5" fill="#374151" />
+        </g>
+      ))}
     </svg>
   )
 }
