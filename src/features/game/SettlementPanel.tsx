@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PAYBOX_ID, PAYBOX_LABEL, type GameResult } from '../../lib/finance'
 import { Dialog } from '../../components/Dialog'
+import { PayBoxLink } from '../../components/PayBoxLink'
 import { Avatar, btnDanger, btnPrimary, btnSecondary, inputCls, Money } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
 import type { GameBundle, TransactionRow } from '../games/types'
@@ -142,6 +143,7 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
             <p className="text-sm text-slate-400">
               קופה קבוצתית שנאספה: <Money value={result.fees.groupFund} />
             </p>
+            <PayBoxLink label="תשלום לקופה בקבוצת PayBox" />
           </section>
 
           <section className="space-y-2">

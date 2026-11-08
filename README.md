@@ -42,9 +42,13 @@ npm run dev
 4. **Authentication → URL Configuration**: מוסיפים ל-Redirect URLs את `http://localhost:5173` ואת כתובת ה-Vercel שלכם.
 5. ה-anon key ו-URL נמצאים ב-Project Settings → API.
 
+### קישור לקבוצת PayBox
+
+`VITE_PAYBOX_URL` (כתובת https בלבד) מציג קישור בולט בדף הבית, בראש המשחק ובמסך הסיום, ליד הקופה הקבוצתית. אם המשתנה ריק או לא תקין הקישור לא מוצג. זו הגדרת פריסה ולא שדה שחבר בקבוצה יכול לערוך, כדי שאף אחד לא יוכל להחליף את הקישור שאליו כולם משלמים.
+
 ### פריסה ל-Vercel
 
-מחברים את ה-repo, מגדירים `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`, והפריסה מזהה Vite אוטומטית. `vercel.json` מגדיר rewrite ל-SPA ו-headers ל-service worker.
+מחברים את ה-repo, מגדירים `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ואופציונלית `VITE_PAYBOX_URL`), והפריסה מזהה Vite אוטומטית. `vercel.json` מגדיר rewrite ל-SPA ו-headers ל-service worker.
 
 ## בדיקות
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { PayBoxLink } from '../components/PayBoxLink'
 import { Badge } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useGameActions } from '../features/game/actions'
@@ -80,6 +81,8 @@ export function GamePage() {
         </h1>
         <Badge tone={isOpen ? 'emerald' : 'slate'}>{isOpen ? 'פתוח' : 'נסגר'}</Badge>
       </header>
+
+      <PayBoxLink />
 
       <ZeroSumBanner result={result} />
 

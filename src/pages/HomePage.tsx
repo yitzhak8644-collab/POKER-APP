@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { PayBoxLink } from '../components/PayBoxLink'
 import { Avatar, Badge, btnPrimary, btnSecondary, inputCls } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
 import { createGame, joinGame } from '../features/games/api'
@@ -33,6 +34,8 @@ export function HomePage() {
           התנתקות
         </button>
       </header>
+
+      <PayBoxLink />
 
       <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         <h2 className="font-bold">משחק חדש</h2>
