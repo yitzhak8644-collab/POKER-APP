@@ -20,6 +20,8 @@ export interface GamePlayerRow {
   display_name: string
   avatar_url: string | null
   role: Role
+  /** Chosen seat at the table (1..10) or `null`. */
+  seat: number | null
   created_by: string
   created_at: string
 }

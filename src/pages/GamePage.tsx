@@ -6,6 +6,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { useGameActions } from '../features/game/actions'
 import { EntryDialogs, type Pending } from '../features/game/EntryDialogs'
 import { LogPanel } from '../features/game/LogPanel'
+import { SeatMap } from '../features/game/SeatMap'
 import { SettingsPanel } from '../features/game/SettingsPanel'
 import { SettlementPanel } from '../features/game/SettlementPanel'
 import { TablePanel } from '../features/game/TablePanel'
@@ -17,6 +18,7 @@ import { formatGameDate } from '../lib/format'
 
 const TABS = [
   { id: 'table', label: 'שולחן' },
+  { id: 'seats', label: 'כיסאות' },
   { id: 'log', label: 'יומן' },
   { id: 'settings', label: 'הגדרות' },
   { id: 'settle', label: 'סיום' },
@@ -94,7 +96,7 @@ export function GamePage() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setParams({ tab: t.id }, { replace: true })}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === t.id ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+            className={`flex-1 whitespace-nowrap rounded-lg px-1 py-2 text-xs font-semibold sm:text-sm ${tab === t.id ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
           >
             {t.label}
           </button>
@@ -108,6 +110,15 @@ export function GamePage() {
           canWrite={isOpen}
           onBuyIn={(playerId) => setPending({ kind: 'buy_in', playerId, step: 'amount' })}
           onRebuy={(playerId) => setPending({ kind: 'rebuy', playerId, step: 'warn' })}
+        />
+      )}
+      {tab === 'seats' && (
+        <SeatMap
+          players={bundle.players}
+          userId={session?.user.id}
+          isOwner={isOwner}
+          canWrite={isOpen}
+          onSetSeat={actions.setPlayerSeat}
         />
       )}
       {tab === 'log' && <LogPanel log={log} canVoid={isOwner && isOpen} onVoid={actions.voidTransaction} />}

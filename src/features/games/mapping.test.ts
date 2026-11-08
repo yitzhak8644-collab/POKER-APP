@@ -5,7 +5,7 @@ import type { GameBundle, GamePlayerRow, TransactionRow } from './types'
 
 const seat = (id: string, name: string, role: GamePlayerRow['role'] = 'guest', userId: string | null = null): GamePlayerRow => ({
   id, game_id: 'g', user_id: userId, display_name: name, avatar_url: userId ? `https://img/${name}.png` : null,
-  role, created_by: 'u-owner', created_at: '2026-11-05T18:00:00Z',
+  role, seat: null, created_by: 'u-owner', created_at: '2026-11-05T18:00:00Z',
 })
 
 let n = 0

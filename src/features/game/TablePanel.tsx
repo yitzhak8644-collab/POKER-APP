@@ -13,6 +13,7 @@ interface Props {
 
 export function TablePanel({ result, seats, canWrite, onBuyIn, onRebuy }: Props) {
   const avatarOf = new Map(seats.map((s) => [s.id, s.avatar_url]))
+  const seatOf = new Map(seats.map((s) => [s.id, s.seat]))
   const host = result.players.find((p) => p.role === 'host')
   return (
     <div className="space-y-4">
@@ -26,6 +27,7 @@ export function TablePanel({ result, seats, canWrite, onBuyIn, onRebuy }: Props)
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate font-semibold">{p.name}</span>
                   {p.role !== 'guest' && <Badge tone="amber">{ROLE_LABEL[p.role]}</Badge>}
+                  {seatOf.get(p.id) != null && <Badge>כיסא {seatOf.get(p.id)}</Badge>}
                 </div>
                 <div className="text-sm text-slate-400">
                   הכניס <Money value={p.invested} />

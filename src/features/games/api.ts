@@ -75,6 +75,12 @@ export async function setPlayerRole(playerId: string, role: Role): Promise<void>
   unwrap<null>({ data: null, error: result.error })
 }
 
+/** A player seats themselves; the table manager can seat anyone. `null` leaves the seat. */
+export async function setPlayerSeat(playerId: string, seat: number | null): Promise<void> {
+  const result = await getSupabase().rpc('set_player_seat', { p_player_id: playerId, p_seat: seat })
+  unwrap<null>({ data: null, error: result.error })
+}
+
 export async function addTransaction(input: {
   gameId: string
   playerId: string
