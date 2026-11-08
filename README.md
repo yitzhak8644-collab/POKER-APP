@@ -37,7 +37,7 @@ npm run dev
 
 ### הקמת Supabase (פעם אחת)
 
-1. יוצרים פרויקט ב-Supabase ומריצים את `supabase/migrations/0001_init.sql` (SQL Editor, או `supabase db push`).
+1. יוצרים פרויקט ב-Supabase ומריצים **את כל הקבצים ב-`supabase/migrations/` לפי הסדר** (`0001_init.sql` ואחריו `0002_seats.sql`) ב-SQL Editor, או `supabase db push` שמריץ את שניהם. מי שכבר הריץ את `0001` מריץ רק את `0002` מעליו. בלי `0002` לשונית הכיסאות לא תעבוד.
 2. **Authentication → Providers → Google**: מפעילים ומזינים Client ID ו-Secret מ-Google Cloud Console (OAuth client מסוג Web).
 3. ב-Google Cloud מוסיפים ל-Authorized redirect URIs את `https://<project>.supabase.co/auth/v1/callback`.
 4. **Authentication → URL Configuration**: מוסיפים ל-Redirect URLs את `http://localhost:5173` ואת כתובת ה-Vercel שלכם.
