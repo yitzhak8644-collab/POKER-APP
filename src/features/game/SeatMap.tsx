@@ -4,6 +4,7 @@ import { Avatar, btnDanger, btnPrimary, btnSecondary } from '../../components/ui
 import { useAction } from '../../hooks/useAction'
 import type { GamePlayerRow } from '../games/types'
 import { occupantsBySeat, playerOfUser, seatPositions, unseatedPlayers } from './seats'
+import { TableArt } from './TableArt'
 
 interface Props {
   players: readonly GamePlayerRow[]
@@ -57,15 +58,8 @@ export function SeatMap({ players, userId, isOwner, canWrite, onSetSeat }: Props
 
   return (
     <section className="space-y-3">
-      <div className="relative mx-auto aspect-[4/3] w-full max-w-sm">
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-[13%] inset-y-[16%] flex items-center justify-center rounded-[50%] border-[10px] border-amber-900 bg-emerald-900 shadow-inner"
-        >
-          <span className="text-center text-xs text-emerald-200/80">
-            {occupants.size}/{POSITIONS.length} כיסאות תפוסים
-          </span>
-        </div>
+      <div className="relative mx-auto aspect-[300/560] w-full max-w-[17rem]">
+        <TableArt occupied={occupants.size} total={POSITIONS.length} />
         {POSITIONS.map(({ seat, x, y }) => {
           const occupant = occupants.get(seat)
           const mine = occupant !== undefined && occupant.id === me?.id
@@ -76,8 +70,9 @@ export function SeatMap({ players, userId, isOwner, canWrite, onSetSeat }: Props
               disabled={!interactive(seat)}
               aria-label={`כיסא ${seat} · ${occupant ? occupant.display_name : 'פנוי'}`}
               onClick={() => onTap(seat)}
-              style={{ left: `${x}%`, top: `${y}%` }}
-              className="absolute flex w-16 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
+              // the avatar circle (40px) is centred on the seat anchor, the name hangs below it
+              style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -20px)' }}
+              className="absolute flex w-16 flex-col items-center gap-0.5 disabled:cursor-default"
             >
               {occupant ? (
                 <span className={`rounded-full ${mine ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950' : ''}`}>
