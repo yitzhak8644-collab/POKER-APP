@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { errorKey, GENERIC_ERROR, NETWORK_ERROR, toHebrewMessage } from './errors'
 
@@ -38,9 +38,14 @@ describe('toHebrewMessage', () => {
   })
 
   it('has a Hebrew message for every error key the SQL layer can raise', () => {
-    const sql = readFileSync(new URL('../../supabase/migrations/0001_init.sql', import.meta.url), 'utf8')
+    const dir = new URL('../../supabase/migrations/', import.meta.url)
+    const sql = readdirSync(dir)
+      .filter((f) => f.endsWith('.sql'))
+      .map((f) => readFileSync(new URL(f, dir), 'utf8'))
+      .join('\n')
     const keys = [...sql.matchAll(/raise exception '([A-Z_]+)'/g)].map((m) => m[1] as string)
     expect(keys.length).toBeGreaterThan(10)
+    expect(keys).toEqual(expect.arrayContaining(['SEAT_TAKEN', 'INVALID_SEAT', 'SEAT_FORBIDDEN']))
     for (const key of new Set(keys)) {
       expect(errorKey({ message: key }), `missing message for ${key}`).toBe(key)
     }

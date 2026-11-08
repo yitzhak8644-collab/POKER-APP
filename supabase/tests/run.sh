@@ -89,6 +89,49 @@ if [ "$ELAPSED" -lt 2 ]; then
   exit 1
 fi
 echo "  ok - late buy-in waited ${ELAPSED}s for the lock, then failed with GAME_CLOSED"
+# --- concurrency: two people grabbing the same seat at the same moment ----------------------
+# The loser must get SEAT_TAKEN (a stable key), not a raw unique-violation error.
+echo "▶ concurrency: same seat, two sessions"
+psql_db "$CDB" <<SQL >/dev/null
+begin;
+select tests.as_user('$U');
+select public.create_game();
+select tests.add_player((select id from public.games order by created_at desc limit 1), 'P1');
+select tests.add_player((select id from public.games order by created_at desc limit 1), 'P2');
+commit;
+SQL
+P1=$(as_pg "psql -X -At -d $CDB -c \"select id from public.game_players where display_name = 'P1'\"")
+P2=$(as_pg "psql -X -At -d $CDB -c \"select id from public.game_players where display_name = 'P2'\"")
+psql_db "$CDB" >/dev/null <<SQL &
+begin;
+select tests.as_user('$U');
+select public.set_player_seat('$P1', 5);
+select pg_sleep(3);
+commit;
+SQL
+A_PID=$!
+sleep 1
+START=$(date +%s)
+set +e
+B_OUT=$(psql_db "$CDB" 2>&1 <<SQL
+begin;
+select tests.as_user('$U');
+select public.set_player_seat('$P2', 5);
+SQL
+)
+B_STATUS=$?
+set -e
+ELAPSED=$(( $(date +%s) - START ))
+wait "$A_PID"
+if [ "$B_STATUS" -eq 0 ] || ! grep -q SEAT_TAKEN <<<"$B_OUT" || grep -q "duplicate key" <<<"$B_OUT"; then
+  echo "FAIL: the second person to pick seat 5 did not get SEAT_TAKEN (status=$B_STATUS): $B_OUT"
+  exit 1
+fi
+if [ "$ELAPSED" -lt 2 ]; then
+  echo "FAIL: the second seat request did not wait for the first transaction (${ELAPSED}s)"
+  exit 1
+fi
+echo "  ok - second request waited ${ELAPSED}s, then failed with SEAT_TAKEN"
 as_pg "psql -X -q -d postgres -c 'drop database if exists $CDB'" 2>/dev/null
 
 echo "SQL tests passed"

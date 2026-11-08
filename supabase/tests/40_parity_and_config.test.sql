@@ -104,11 +104,13 @@ select tests.ok('authenticated can call the RPCs',
   and has_function_privilege('authenticated', 'public.create_game(date,boolean)', 'execute')
   and has_function_privilege('authenticated', 'public.join_game(text)', 'execute')
   and has_function_privilege('authenticated', 'public.void_transaction(uuid)', 'execute')
-  and has_function_privilege('authenticated', 'public.set_player_role(uuid,public.player_role)', 'execute'));
+  and has_function_privilege('authenticated', 'public.set_player_role(uuid,public.player_role)', 'execute')
+  and has_function_privilege('authenticated', 'public.set_player_seat(uuid,integer)', 'execute'));
 select tests.ok('anon cannot call any function',
   not has_function_privilege('anon', 'public.close_game(uuid,jsonb,text)', 'execute')
   and not has_function_privilege('anon', 'public.is_game_member(uuid)', 'execute')
-  and not has_function_privilege('anon', 'public.create_game(date,boolean)', 'execute'));
+  and not has_function_privilege('anon', 'public.create_game(date,boolean)', 'execute')
+  and not has_function_privilege('anon', 'public.set_player_seat(uuid,integer)', 'execute'));
 select tests.ok('internal / trigger functions are not callable by API roles',
   not has_function_privilege('authenticated', 'public.handle_new_user()', 'execute')
   and not has_function_privilege('authenticated', 'public.block_writes_when_closed()', 'execute')
