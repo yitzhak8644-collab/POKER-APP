@@ -3,7 +3,7 @@ import type { GameBundle, GamePlayerRow, TransactionRow } from './types'
 
 export const OWNER_LABEL = 'מנהל השולחן'
 export const UNKNOWN_ACTOR_LABEL = 'שחקן'
-export const FALLBACK_BUY_IN = 100
+export const FALLBACK_BUY_IN = 250
 
 export function toLedgerRows(transactions: readonly TransactionRow[]): LedgerRow[] {
   return transactions.map((t) => ({
@@ -78,6 +78,8 @@ export interface LogEntry {
   voided: boolean
   voidedAt: string | null
   voidedByName: string | null
+  /** Free text saved with the entry (e.g. the chips counted for a Cash-out). */
+  note: string | null
 }
 
 /** Audit log, newest first: who logged what, for whom, and when. */
@@ -103,6 +105,7 @@ export function buildLog(bundle: GameBundle): LogEntry[] {
         voided: t.voided_at !== null,
         voidedAt: t.voided_at,
         voidedByName: t.voided_by === null ? null : nameOf(t.voided_by).name,
+        note: t.note,
       }
     })
     .sort((a, b) => (a.at === b.at ? (a.id < b.id ? 1 : -1) : a.at < b.at ? 1 : -1))

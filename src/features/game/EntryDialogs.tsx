@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { ChipStack } from '../../components/ChipStack'
 import { Dialog } from '../../components/Dialog'
 import { btnPrimary, btnSecondary, inputCls } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
+import { REBUY_AMOUNT, stackFor } from '../../lib/chips'
 import { REBUY_WARNING, TX_LABEL } from './labels'
 
 export type Pending = { kind: 'buy_in' | 'rebuy'; playerId: string; step: 'warn' | 'amount' } | null
@@ -16,7 +18,7 @@ interface Props {
   onSubmit: (kind: 'buy_in' | 'rebuy', playerId: string, amount: number) => Promise<void>
 }
 
-const PRESETS = [20, 50, 100, 200]
+const PRESETS = [100, 250, 500]
 
 /**
  * Buy-in: pick an amount and log it.
@@ -47,7 +49,7 @@ export function EntryDialogs({ pending, playerName, defaultAmount, onCancel, onC
           <AmountForm
             key={`${pending.kind}-${pending.playerId}`}
             kind={pending.kind}
-            defaultAmount={defaultAmount}
+            defaultAmount={pending.kind === 'rebuy' ? REBUY_AMOUNT : defaultAmount}
             onCancel={onCancel}
             onSubmit={(amount) => onSubmit(pending.kind, pending.playerId, amount)}
           />
@@ -72,6 +74,7 @@ function AmountForm({
   const { run, busy, error } = useAction()
   const amount = Number(text)
   const valid = Number.isInteger(amount) && amount > 0
+  const stack = valid ? stackFor(amount) : null
 
   return (
     <form
@@ -107,6 +110,12 @@ function AmountForm({
           autoFocus
         />
       </label>
+      {stack !== null && (
+        <div className="space-y-2 rounded-xl border border-slate-700 bg-slate-950 p-3">
+          <p className="text-sm text-slate-400">קחו מהקופסה:</p>
+          <ChipStack counts={stack} />
+        </div>
+      )}
       {error !== null && (
         <p role="alert" className="text-sm text-rose-400">
           {error}

@@ -137,7 +137,7 @@ export function GamePage() {
           bundle={bundle}
           result={result}
           isOwner={isOwner}
-          onCashOut={(playerId, amount) => actions.addTransaction({ gameId: id, playerId, type: 'cash_out', amount })}
+          onCashOut={(playerId, amount, note) => actions.addTransaction({ gameId: id, playerId, type: 'cash_out', amount, note })}
           onVoid={actions.voidTransaction}
           onCloseGame={() => actions.closeGame(buildSnapshot(result), result.summary ?? '')}
         />

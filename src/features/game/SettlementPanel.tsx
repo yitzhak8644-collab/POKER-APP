@@ -4,6 +4,7 @@ import { Dialog } from '../../components/Dialog'
 import { PayBoxLink } from '../../components/PayBoxLink'
 import { Avatar, btnDanger, btnPrimary, btnSecondary, inputCls, Money } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
+import { ChipCounterDialog } from './ChipCounter'
 import type { GameBundle, TransactionRow } from '../games/types'
 
 interface Props {
@@ -11,7 +12,8 @@ interface Props {
   result: GameResult
   /** Table manager (game owner). */
   isOwner: boolean
-  onCashOut: (playerId: string, amount: number) => Promise<void>
+  /** `note` lists the chips when the amount was counted with the chip counter. */
+  onCashOut: (playerId: string, amount: number, note?: string) => Promise<void>
   onVoid: (txId: string) => Promise<void>
   /** Closes the game for good (server-enforced: owner only, zero-sum, everyone cashed out). */
   onCloseGame: () => Promise<void>
@@ -78,7 +80,7 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
                       </div>
                     </div>
                   ) : (
-                    isOpen && <CashOutForm onSave={(amount) => onCashOut(p.id, amount)} />
+                    isOpen && <CashOutForm playerName={p.name} onSave={(amount, note) => onCashOut(p.id, amount, note)} />
                   )}
                   {p.cashOut !== null && isOpen && isOwner && entered && (
                     <button
@@ -225,8 +227,9 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
   )
 }
 
-function CashOutForm({ onSave }: { onSave: (amount: number) => Promise<void> }) {
+function CashOutForm({ playerName, onSave }: { playerName: string; onSave: (amount: number, note?: string) => Promise<void> }) {
   const [text, setText] = useState('')
+  const [counting, setCounting] = useState(false)
   const { run, busy, error } = useAction()
   const amount = Number(text)
   const valid = text !== '' && Number.isInteger(amount) && amount >= 0
@@ -251,12 +254,24 @@ function CashOutForm({ onSave }: { onSave: (amount: number) => Promise<void> }) 
         <button type="submit" className={btnPrimary} disabled={!valid || busy}>
           שמור
         </button>
+        <button type="button" className={btnSecondary} disabled={busy} onClick={() => setCounting(true)} aria-label={`ספירת צ׳יפים ל${playerName}`}>
+          ספירה
+        </button>
       </form>
       {error !== null && (
         <p role="alert" className="text-xs text-rose-400">
           {error}
         </p>
       )}
+      <ChipCounterDialog
+        open={counting}
+        playerName={playerName}
+        onClose={() => setCounting(false)}
+        onSave={(total, note) => {
+          setCounting(false)
+          void run(() => onSave(total, note === '' ? undefined : note))
+        }}
+      />
     </div>
   )
 }

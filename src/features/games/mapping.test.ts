@@ -138,3 +138,20 @@ describe('buildSnapshot', () => {
     expect(snapshot.players).toHaveLength(5)
   })
 })
+
+describe('log notes (chips counted for a cash-out)', () => {
+  it('shows the note saved with an entry, and null when there is none', () => {
+    const b = golden()
+    b.transactions = [
+      tx('A', 'cash_out', 140, { note: 'אדום×10, ירוק×8' }),
+      tx('B', 'buy_in', 250),
+    ]
+    const byPlayer = Object.fromEntries(buildLog(b).map((e) => [e.playerName, e.note]))
+    expect(byPlayer).toEqual({ A: 'אדום×10, ירוק×8', B: null })
+  })
+
+  it('the default buy-in is 250 (a rebuy stack) when nobody has bought in yet', () => {
+    expect(FALLBACK_BUY_IN).toBe(250)
+    expect(defaultBuyInAmount([])).toBe(250)
+  })
+})

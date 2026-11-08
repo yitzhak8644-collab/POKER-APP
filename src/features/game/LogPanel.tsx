@@ -35,6 +35,7 @@ export function LogPanel({ log, canVoid, onVoid }: Props) {
                   </Badge>
                   <Money value={e.amount} className="font-semibold" />
                 </div>
+                {e.note && <div className="mt-1 text-xs text-slate-300">{e.note}</div>}
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400 no-underline">
                   <Avatar name={e.actorName} src={e.actorAvatar} size="sm" />
                   <span>נרשם ע״י {e.actorName}</span>

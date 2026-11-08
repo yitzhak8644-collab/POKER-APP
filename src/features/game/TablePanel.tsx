@@ -1,4 +1,5 @@
 import type { GameResult } from '../../lib/finance'
+import { ChipLegend } from '../../components/ChipStack'
 import { Avatar, Badge, btnSecondary, Money } from '../../components/ui'
 import type { GamePlayerRow } from '../games/types'
 import { ROLE_LABEL } from './labels'
@@ -72,6 +73,7 @@ export function TablePanel({ result, seats, canWrite, onBuyIn, onRebuy }: Props)
           )}
         </dd>
       </dl>
+      <ChipLegend />
     </div>
   )
 }

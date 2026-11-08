@@ -59,7 +59,7 @@ export function SeatMap({ players, userId, isOwner, canWrite, onSetSeat }: Props
   return (
     <section className="space-y-3">
       <div className="relative mx-auto aspect-[300/416] w-full max-w-[20rem]">
-        <TableArt occupied={occupants.size} total={POSITIONS.length} />
+        <TableArt />
         {POSITIONS.map(({ seat, x, y }) => {
           const occupant = occupants.get(seat)
           const mine = occupant !== undefined && occupant.id === me?.id
@@ -92,6 +92,9 @@ export function SeatMap({ players, userId, isOwner, canWrite, onSetSeat }: Props
         })}
       </div>
 
+      <p className="text-center text-sm text-slate-300">
+        {occupants.size}/{POSITIONS.length} כיסאות תפוסים
+      </p>
       {error !== null && (
         <p role="alert" className="text-center text-sm text-rose-400">
           {error}
