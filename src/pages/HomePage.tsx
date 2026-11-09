@@ -4,8 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { PayBoxLink } from '../components/PayBoxLink'
 import { Avatar, Badge, btnPrimary, btnSecondary, inputCls } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
-import { createGame, joinGame } from '../features/games/api'
-import { MY_GAMES_KEY, useMyGames } from '../features/games/hooks'
+import { createGame, joinGame, joinOpenGame } from '../features/games/api'
+import { MY_GAMES_KEY, useMyGames, useOpenGames } from '../features/games/hooks'
 import { useAction } from '../hooks/useAction'
 import { toHebrewMessage } from '../lib/errors'
 import { formatGameDate, todayInIsrael } from '../lib/format'
@@ -15,6 +15,8 @@ export function HomePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const games = useMyGames()
+  const openGames = useOpenGames()
+  const joinOpen = useAction()
   const create = useAction()
   const join = useAction()
   const [date, setDate] = useState(todayInIsrael())
@@ -36,6 +38,52 @@ export function HomePage() {
       </header>
 
       <PayBoxLink />
+
+      {openGames.data !== undefined && openGames.data.length > 0 && (
+        <section aria-live="polite" className="space-y-2 rounded-2xl border border-emerald-700 bg-emerald-950/40 p-4">
+          <h2 className="font-bold text-emerald-300">יש שולחן פתוח!</h2>
+          <ul className="space-y-2">
+            {openGames.data.map((o) => {
+              const isMine = games.data?.some((g) => g.id === o.game_id) ?? false
+              return (
+                <li key={o.game_id} className="flex items-center gap-3">
+                  <span className="flex-1 text-sm">
+                    <bdi>{o.owner_name || 'שולחן'}</bdi> ·{' '}
+                    <bdi dir="ltr" className="font-num">
+                      {formatGameDate(o.played_on)}
+                    </bdi>
+                  </span>
+                  {isMine ? (
+                    <Link to={`/g/${o.game_id}`} className={btnSecondary}>
+                      לשולחן
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className={btnPrimary}
+                      disabled={joinOpen.busy}
+                      onClick={async () => {
+                        const r = await joinOpen.run(() => joinOpenGame(o.game_id))
+                        if (r.ok) {
+                          void queryClient.invalidateQueries({ queryKey: MY_GAMES_KEY })
+                          navigate(`/g/${r.value}`)
+                        }
+                      }}
+                    >
+                      הצטרף
+                    </button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          {joinOpen.error !== null && (
+            <p role="alert" className="text-sm text-rose-400">
+              {joinOpen.error}
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         <h2 className="font-bold">משחק חדש</h2>

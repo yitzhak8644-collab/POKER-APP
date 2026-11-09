@@ -1,6 +1,6 @@
 import type { Role, TxType } from '../../lib/finance'
 import { getSupabase } from '../../lib/supabase'
-import type { GameBundle, GamePlayerRow, GameRow, SettlementRow, TransactionRow } from './types'
+import type { GameBundle, GamePlayerRow, GameRow, OpenGameRow, SettlementRow, TransactionRow } from './types'
 
 /** Throws the original Postgrest error (its `message` is a stable key, see lib/errors.ts). */
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {
@@ -16,6 +16,15 @@ export async function fetchMyGames(): Promise<GameRow[]> {
     .order('created_at', { ascending: false })
     .limit(50)
   return unwrap<GameRow[]>(result)
+}
+
+export async function fetchOpenGames(): Promise<OpenGameRow[]> {
+  const result = await getSupabase()
+    .from('open_games')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20)
+  return unwrap<OpenGameRow[]>(result)
 }
 
 export async function fetchGameBundle(gameId: string): Promise<GameBundle> {
@@ -46,6 +55,11 @@ export async function createGame(playedOn: string, joinAsPlayer = true): Promise
 
 export async function joinGame(code: string): Promise<string> {
   return unwrap<string>(await getSupabase().rpc('join_game', { p_code: code }))
+}
+
+/** One-tap join from the open-tables lobby (no code needed). */
+export async function joinOpenGame(gameId: string): Promise<string> {
+  return unwrap<string>(await getSupabase().rpc('join_open_game', { p_game_id: gameId }))
 }
 
 /** Table manager: add a player without an account (e.g. the host's spouse). */

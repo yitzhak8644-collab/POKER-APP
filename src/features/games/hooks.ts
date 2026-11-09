@@ -2,12 +2,14 @@ import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { getSupabase } from '../../lib/supabase'
-import { fetchGameBundle, fetchMyGames } from './api'
+import { fetchGameBundle, fetchMyGames, fetchOpenGames } from './api'
 import { applyBundleChange, needsRefetch, type RealtimeTable } from './realtime'
 import type { GameBundle } from './types'
 
 export const gameKey = (gameId: string) => ['game', gameId] as const
 export const MY_GAMES_KEY = ['games'] as const
+
+export const OPEN_GAMES_KEY = ['open-games'] as const
 
 export const useMyGames = () => useQuery({ queryKey: MY_GAMES_KEY, queryFn: fetchMyGames })
 
@@ -76,4 +78,38 @@ export function useGameRealtime(gameId: string): void {
       void supabase.removeChannel(channel)
     }
   }, [gameId, queryClient])
+}
+
+/**
+ * The open-tables lobby. Every signed-in user gets Realtime events when a table opens or closes
+ * (open_games is readable by all), and we refetch on (re)subscribe and when the app returns to the
+ * foreground so a missed event never leaves a stale list.
+ */
+export function useOpenGames() {
+  const queryClient = useQueryClient()
+  const query = useQuery({ queryKey: OPEN_GAMES_KEY, queryFn: fetchOpenGames })
+
+  useEffect(() => {
+    const supabase = getSupabase()
+    const refetch = () => {
+      void queryClient.invalidateQueries({ queryKey: OPEN_GAMES_KEY })
+      void queryClient.invalidateQueries({ queryKey: MY_GAMES_KEY })
+    }
+    const channel = supabase
+      .channel('open-games')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'open_games' }, refetch)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') refetch()
+      })
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refetch()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+
+  return query
 }

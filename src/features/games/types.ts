@@ -12,6 +12,15 @@ export interface GameRow {
   updated_at: string
 }
 
+/** A row of the open-tables lobby (visible to every signed-in user; never carries the join code). */
+export interface OpenGameRow {
+  game_id: string
+  owner_name: string
+  /** YYYY-MM-DD */
+  played_on: string
+  created_at: string
+}
+
 export interface GamePlayerRow {
   id: string
   game_id: string
