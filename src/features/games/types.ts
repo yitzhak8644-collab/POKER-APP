@@ -31,6 +31,8 @@ export interface GamePlayerRow {
   role: Role
   /** Chosen seat at the table (1..10) or `null`. */
   seat: number | null
+  /** Whether the player already answered "are you the host?". */
+  host_asked: boolean
   created_by: string
   created_at: string
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Dialog } from '../components/Dialog'
 import { PayBoxLink } from '../components/PayBoxLink'
-import { Badge } from '../components/ui'
+import { Badge, btnPrimary, btnSecondary } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useGameActions } from '../features/game/actions'
 import { EntryDialogs, type Pending } from '../features/game/EntryDialogs'
@@ -34,6 +35,8 @@ export function GamePage() {
   const [params, setParams] = useSearchParams()
   const [pending, setPending] = useState<Pending>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [hostDismissed, setHostDismissed] = useState(false)
+  const [hostError, setHostError] = useState<string | null>(null)
 
   useEffect(() => {
     if (toast === null) return
@@ -61,6 +64,17 @@ export function GamePage() {
   const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'table'
   const isOwner = session?.user.id === bundle.game.owner_id
   const isOpen = bundle.game.status === 'open'
+  const me = bundle.players.find((p) => p.user_id === session?.user.id)
+  const hostSlotsTaken = bundle.players.filter((p) => p.role === 'host' || p.role === 'host_spouse').length
+  const askHost = isOpen && me !== undefined && !me.host_asked && !hostDismissed
+  const answerHost = async (isHost: boolean) => {
+    setHostError(null)
+    try {
+      await actions.answerHostQuestion(id, isHost)
+    } catch (err) {
+      setHostError(toHebrewMessage(err))
+    }
+  }
   const pendingName = bundle.players.find((p) => p.id === pending?.playerId)?.display_name ?? ''
 
   const submitEntry = async (kind: 'buy_in' | 'rebuy', playerId: string, amount: number) => {
@@ -83,6 +97,31 @@ export function GamePage() {
         </h1>
         <Badge tone={isOpen ? 'emerald' : 'slate'}>{isOpen ? 'פתוח' : 'נסגר'}</Badge>
       </header>
+
+      <Dialog open={askHost} onClose={() => setHostDismissed(true)} title="האם אתה המארח/ת?">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">
+            {hostSlotsTaken >= 2
+              ? 'כבר יש שני מארחים בשולחן.'
+              : 'מארח מקבל 5 ₪ מכל אורח. אפשר עד שני מארחים בשולחן.'}
+          </p>
+          {hostError !== null && (
+            <p role="alert" className="text-sm text-rose-400">
+              {hostError}
+            </p>
+          )}
+          <div className="flex gap-2">
+            {hostSlotsTaken < 2 && (
+              <button type="button" className={`${btnPrimary} flex-1`} onClick={() => void answerHost(true)}>
+                כן, אני המארח/ת
+              </button>
+            )}
+            <button type="button" className={`${btnSecondary} flex-1`} onClick={() => void answerHost(false)}>
+              לא, אני אורח/ת
+            </button>
+          </div>
+        </div>
+      </Dialog>
 
       <PayBoxLink />
 

@@ -24,6 +24,7 @@ export function useGameActions(gameId: string) {
       voidTransaction: then(api.voidTransaction),
       addPlayer: then((name: string, role?: Parameters<typeof api.addPlayer>[2]) => api.addPlayer(gameId, name, role)),
       removePlayer: then(api.removePlayer),
+      answerHostQuestion: then(api.answerHostQuestion),
       setPlayerRole: then(api.setPlayerRole),
       setPlayerSeat: then(api.setPlayerSeat),
       closeGame: then((snapshot: Record<string, unknown>, text: string) => api.closeGame(gameId, snapshot, text)),

@@ -62,6 +62,12 @@ export async function joinOpenGame(gameId: string): Promise<string> {
   return unwrap<string>(await getSupabase().rpc('join_open_game', { p_game_id: gameId }))
 }
 
+/** The signed-in player answers "are you the host?" (at most two hosts per table). */
+export async function answerHostQuestion(gameId: string, isHost: boolean): Promise<void> {
+  const result = await getSupabase().rpc('answer_host_question', { p_game_id: gameId, p_is_host: isHost })
+  unwrap<null>({ data: null, error: result.error })
+}
+
 /** Table manager: add a player without an account (e.g. the host's spouse). */
 export async function addPlayer(gameId: string, displayName: string, role: Role = 'guest'): Promise<void> {
   const result = await getSupabase()

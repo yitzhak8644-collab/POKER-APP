@@ -19,6 +19,8 @@ const MESSAGES: Record<string, string> = {
   MISSING_CASH_OUT: 'חסר Cash-out לחלק מהשחקנים.',
   ZERO_SUM_MISMATCH: 'סך ה-Cash-out לא שווה לסך הכניסות. יש לתקן לפני הסגירה.',
   INVALID_SNAPSHOT: 'סיכום המשחק לא תקין.',
+  HOSTS_FULL: 'כבר יש שני מארחים בשולחן.',
+  games_one_open: 'כבר יש שולחן פתוח. אפשר להצטרף אליו.',
   SEAT_TAKEN: 'הכיסא כבר תפוס.',
   INVALID_SEAT: 'מספר כיסא לא תקין.',
   SEAT_FORBIDDEN: 'אפשר לבחור כיסא רק לעצמך. רק מנהל השולחן יכול להושיב אחרים.',

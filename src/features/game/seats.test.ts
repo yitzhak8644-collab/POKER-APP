@@ -16,7 +16,7 @@ import {
 } from './seats'
 
 const row = (id: string, seat: number | null, userId: string | null = null): GamePlayerRow => ({
-  id, game_id: 'g', user_id: userId, display_name: id, avatar_url: null, role: 'guest', seat, created_by: 'u', created_at: 't',
+  id, game_id: 'g', user_id: userId, display_name: id, avatar_url: null, role: 'guest', seat, host_asked: true, created_by: 'u', created_at: 't',
 })
 
 describe('seatPositions (stadium table: 4 + 4 on the long sides, 1 at each end)', () => {

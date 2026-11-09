@@ -7,7 +7,7 @@ const game: GameRow = {
   closed_at: null, created_at: 't0', updated_at: 't0',
 }
 const player = (id: string, name = id): GamePlayerRow => ({
-  id, game_id: 'g', user_id: null, display_name: name, avatar_url: null, role: 'guest', seat: null, created_by: 'u1', created_at: 't0',
+  id, game_id: 'g', user_id: null, display_name: name, avatar_url: null, role: 'guest', seat: null, host_asked: true, created_by: 'u1', created_at: 't0',
 })
 const tx = (id: string, extra: Partial<TransactionRow> = {}): TransactionRow => ({
   id, game_id: 'g', player_id: 'p1', type: 'buy_in', amount: 100, created_by: 'u1', created_at: 't1',
