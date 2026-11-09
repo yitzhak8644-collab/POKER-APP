@@ -27,7 +27,9 @@ export function useGameActions(gameId: string) {
       answerHostQuestion: then(api.answerHostQuestion),
       setPlayerRole: then(api.setPlayerRole),
       setPlayerSeat: then(api.setPlayerSeat),
-      closeGame: then((snapshot: Record<string, unknown>, text: string) => api.closeGame(gameId, snapshot, text)),
+      closeGame: then((snapshot: Record<string, unknown>, text: string, force?: boolean) =>
+        api.closeGame(gameId, snapshot, text, force),
+      ),
     }
   }, [gameId, queryClient])
 }

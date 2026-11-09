@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Dialog } from '../components/Dialog'
 import { PayBoxLink } from '../components/PayBoxLink'
-import { Badge, btnPrimary, btnSecondary } from '../components/ui'
+import { Badge, btnDanger, btnPrimary, btnSecondary } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useGameActions } from '../features/game/actions'
 import { EntryDialogs, type Pending } from '../features/game/EntryDialogs'
@@ -12,7 +13,8 @@ import { SettingsPanel } from '../features/game/SettingsPanel'
 import { SettlementPanel } from '../features/game/SettlementPanel'
 import { TablePanel } from '../features/game/TablePanel'
 import { ZeroSumBanner } from '../features/game/ZeroSumBanner'
-import { useGameBundle, useGameRealtime } from '../features/games/hooks'
+import { adminDeleteGame } from '../features/games/api'
+import { MY_GAMES_KEY, OPEN_GAMES_KEY, useGameBundle, useGameRealtime, useIsAdmin } from '../features/games/hooks'
 import { buildLog, buildSnapshot, defaultBuyInAmount, deriveGame } from '../features/games/mapping'
 import { toHebrewMessage } from '../lib/errors'
 import { formatGameDate } from '../lib/format'
@@ -29,6 +31,12 @@ type TabId = (typeof TABS)[number]['id']
 export function GamePage() {
   const { id = '' } = useParams()
   const { session } = useAuth()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const isAdmin = useIsAdmin().data === true
+  const [deleting, setDeleting] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   useGameRealtime(id)
   const { data: bundle, error, isLoading } = useGameBundle(id)
   const actions = useGameActions(id)
@@ -62,7 +70,7 @@ export function GamePage() {
   const { result, log, defaultAmount } = derived
   const tabParam = params.get('tab')
   const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'table'
-  const isOwner = session?.user.id === bundle.game.owner_id
+  const isOwner = session?.user.id === bundle.game.owner_id || isAdmin
   const isOpen = bundle.game.status === 'open'
   const me = bundle.players.find((p) => p.user_id === session?.user.id)
   const hostSlotsTaken = bundle.players.filter((p) => p.role === 'host' || p.role === 'host_spouse').length
@@ -125,6 +133,50 @@ export function GamePage() {
 
       <PayBoxLink />
 
+      {isAdmin && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-600 bg-amber-950/30 p-2 text-sm">
+          <span className="flex-1 text-amber-300">מנהל כללי</span>
+          <button type="button" className={btnDanger} onClick={() => setDeleting(true)}>
+            מחיקת שולחן
+          </button>
+        </div>
+      )}
+      <Dialog open={deleting} onClose={() => setDeleting(false)} title="למחוק את השולחן?" tone="danger">
+        <p className="text-sm text-slate-300">השולחן, השחקנים, הרישומים והסיכום יימחקו לצמיתות. אי אפשר לשחזר.</p>
+        {deleteError !== null && (
+          <p role="alert" className="text-sm text-rose-400">
+            {deleteError}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button type="button" className={`${btnSecondary} flex-1`} onClick={() => setDeleting(false)}>
+            ביטול
+          </button>
+          <button
+            type="button"
+            className={`${btnDanger} flex-1`}
+            disabled={deleteBusy}
+            onClick={async () => {
+              setDeleteBusy(true)
+              setDeleteError(null)
+              try {
+                await adminDeleteGame(id)
+                queryClient.removeQueries({ queryKey: ['game', id] })
+                void queryClient.invalidateQueries({ queryKey: MY_GAMES_KEY })
+                void queryClient.invalidateQueries({ queryKey: OPEN_GAMES_KEY })
+                navigate('/', { replace: true })
+              } catch (err) {
+                setDeleteError(toHebrewMessage(err))
+              } finally {
+                setDeleteBusy(false)
+              }
+            }}
+          >
+            {deleteBusy ? 'מוחק…' : 'כן, מחק'}
+          </button>
+        </div>
+      </Dialog>
+
       <ZeroSumBanner result={result} />
 
       <nav className="flex gap-1 rounded-xl bg-slate-900 p-1" role="tablist">
@@ -178,7 +230,10 @@ export function GamePage() {
           isOwner={isOwner}
           onCashOut={(playerId, amount, note) => actions.addTransaction({ gameId: id, playerId, type: 'cash_out', amount, note })}
           onVoid={actions.voidTransaction}
-          onCloseGame={() => actions.closeGame(buildSnapshot(result), result.summary ?? '')}
+          isAdmin={isAdmin}
+          onCloseGame={(force) =>
+            actions.closeGame(buildSnapshot(result), result.summary ?? 'המשחק נסגר על ידי המנהל הכללי ללא איזון.', force)
+          }
         />
       )}
 

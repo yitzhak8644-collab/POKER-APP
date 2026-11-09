@@ -12,11 +12,12 @@ interface Props {
   result: GameResult
   /** Table manager (game owner). */
   isOwner: boolean
+  isAdmin?: boolean
   /** `note` lists the chips when the amount was counted with the chip counter. */
   onCashOut: (playerId: string, amount: number, note?: string) => Promise<void>
   onVoid: (txId: string) => Promise<void>
   /** Closes the game for good (server-enforced: owner only, zero-sum, everyone cashed out). */
-  onCloseGame: () => Promise<void>
+  onCloseGame: (force: boolean) => Promise<void>
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -28,9 +29,10 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, onCloseGame }: Props) {
+export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCashOut, onVoid, onCloseGame }: Props) {
   const isOpen = bundle.game.status === 'open'
   const [confirming, setConfirming] = useState(false)
+  const [forcing, setForcing] = useState(false)
   const [copied, setCopied] = useState(false)
   const closing = useAction()
   const voiding = useAction()
@@ -188,7 +190,25 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
               >
                 סגירת משחק
               </button>
-              {!result.ready && <p className="text-sm text-slate-400">אפשר לסגור רק כשהמאזן מתאפס ואין שגיאות בהגדרות.</p>}
+              {!result.ready && isAdmin && (
+                <button
+                  type="button"
+                  className={`${btnDanger} w-full`}
+                  onClick={() => {
+                    closing.clearError()
+                    setForcing(true)
+                    setConfirming(true)
+                  }}
+                >
+                  סגירה בכוח (מנהל כללי)
+                </button>
+              )}
+              {!result.ready && (
+                <p className="text-sm text-slate-400">
+                  אפשר לסגור רק כשהמאזן מתאפס ואין שגיאות בהגדרות.
+                  {isAdmin ? ' כמנהל כללי אפשר לסגור גם בלי איזון.' : ''}
+                </p>
+              )}
             </>
           ) : (
             <p className="text-sm text-slate-400">רק מנהל השולחן יכול לסגור את המשחק.</p>
@@ -196,7 +216,7 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
         </section>
       )}
 
-      <Dialog open={confirming} onClose={() => setConfirming(false)} title="לסגור את המשחק?" tone="danger">
+      <Dialog open={confirming} onClose={() => { setConfirming(false); setForcing(false) }} title={forcing ? 'לסגור בכוח, בלי איזון?' : 'לסגור את המשחק?'} tone="danger">
         <p className="text-sm text-slate-300">
           לאחר הסגירה אי אפשר לשנות כניסות, Cash-out או תפקידים. סיכום המשחק יישמר: קופה{' '}
           <Money value={result.pot} />, קופה קבוצתית <Money value={result.fees.groupFund} />, {result.transfers.length} העברות.
@@ -207,7 +227,7 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
           </p>
         )}
         <div className="flex gap-2">
-          <button type="button" className={`${btnSecondary} flex-1`} onClick={() => setConfirming(false)}>
+          <button type="button" className={`${btnSecondary} flex-1`} onClick={() => { setConfirming(false); setForcing(false) }}>
             ביטול
           </button>
           <button
@@ -215,8 +235,11 @@ export function SettlementPanel({ bundle, result, isOwner, onCashOut, onVoid, on
             className={`${btnDanger} flex-1`}
             disabled={closing.busy}
             onClick={async () => {
-              const r = await closing.run(onCloseGame)
-              if (r.ok) setConfirming(false)
+              const r = await closing.run(() => onCloseGame(forcing))
+              if (r.ok) {
+                setConfirming(false)
+                setForcing(false)
+              }
             }}
           >
             {closing.busy ? 'סוגר…' : 'כן, סגור את המשחק'}

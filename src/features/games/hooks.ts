@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { getSupabase } from '../../lib/supabase'
-import { fetchGameBundle, fetchMyGames, fetchOpenGames } from './api'
+import { fetchGameBundle, fetchIsAdmin, fetchMyGames, fetchOpenGames } from './api'
 import { applyBundleChange, needsRefetch, type RealtimeTable } from './realtime'
 import type { GameBundle } from './types'
 
@@ -10,6 +10,9 @@ export const gameKey = (gameId: string) => ['game', gameId] as const
 export const MY_GAMES_KEY = ['games'] as const
 
 export const OPEN_GAMES_KEY = ['open-games'] as const
+
+export const useIsAdmin = () =>
+  useQuery({ queryKey: ['is-admin'], queryFn: fetchIsAdmin, staleTime: Infinity })
 
 export const useMyGames = () => useQuery({ queryKey: MY_GAMES_KEY, queryFn: fetchMyGames })
 

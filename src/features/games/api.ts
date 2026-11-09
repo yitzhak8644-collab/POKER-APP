@@ -123,15 +123,27 @@ export async function voidTransaction(id: string): Promise<void> {
   unwrap<null>({ data: null, error: result.error })
 }
 
+export async function fetchIsAdmin(): Promise<boolean> {
+  return unwrap<boolean>(await getSupabase().rpc('is_app_admin'))
+}
+
+/** General manager only: permanently deletes a game with all its data. */
+export async function adminDeleteGame(gameId: string): Promise<void> {
+  const result = await getSupabase().rpc('admin_delete_game', { p_game_id: gameId })
+  unwrap<null>({ data: null, error: result.error })
+}
+
 export async function closeGame(
   gameId: string,
   snapshot: Record<string, unknown>,
   whatsappText: string,
+  force = false,
 ): Promise<void> {
   const result = await getSupabase().rpc('close_game', {
     p_game_id: gameId,
     p_snapshot: snapshot,
     p_whatsapp_text: whatsappText,
+    p_force: force,
   })
   unwrap<null>({ data: null, error: result.error })
 }
