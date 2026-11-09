@@ -34,6 +34,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
+        // Web Push handlers (push + notificationclick) live in public/push-sw.js.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { PayBoxLink } from '../components/PayBoxLink'
 import { Avatar, Badge, btnPrimary, btnSecondary } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
+import { NotificationPrompt } from '../features/push/NotificationPrompt'
 import { createGame, joinOpenGame } from '../features/games/api'
 import { MY_GAMES_KEY, OPEN_GAMES_KEY, useIsAdmin, useMyGames, useOpenGames } from '../features/games/hooks'
 import { useAction } from '../hooks/useAction'
@@ -48,6 +49,8 @@ export function HomePage() {
       </header>
 
       <PayBoxLink />
+
+      <NotificationPrompt />
 
       <section aria-live="polite" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         {openGames.isLoading && <p className="text-slate-400">טוען…</p>}
