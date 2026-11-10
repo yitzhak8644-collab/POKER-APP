@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Dialog } from '../../components/Dialog'
 import { Chip } from '../../components/Chip'
 import { Money, btnPrimary, btnSecondary, inputCls } from '../../components/ui'
-import { CHIPS, formatChipNote, stackValue, type ChipCounts, type ChipId } from '../../lib/chips'
+import { CHIPS, CHIPS_PER_NIS, chipsToNis, formatChipNote, stackValue, type ChipCounts, type ChipId } from '../../lib/chips'
 
 interface Props {
   open: boolean
@@ -24,6 +24,7 @@ export function ChipCounterDialog({ open, playerName, onClose, onSave }: Props) 
 function Counter({ onClose, onSave }: Pick<Props, 'onClose' | 'onSave'>) {
   const [counts, setCounts] = useState<Record<ChipId, number>>({ red: 0, green: 0, blue: 0, black: 0, yellow: 0 })
   const total = stackValue(counts)
+  const nis = chipsToNis(total)
   const set = (id: ChipId, n: number) => setCounts((c) => ({ ...c, [id]: Math.max(0, Math.min(999, n)) }))
 
   return (
@@ -35,7 +36,7 @@ function Counter({ onClose, onSave }: Pick<Props, 'onClose' | 'onSave'>) {
             <div className="flex-1 leading-tight">
               <div className="font-semibold">{chip.label}</div>
               <div className="text-xs text-slate-400">
-                <Money value={chip.value} /> לצ׳יפ
+                <bdi dir="ltr" className="font-num">{chip.value}</bdi> צ׳יפים · <Money value={chip.value / CHIPS_PER_NIS} />
               </div>
             </div>
             <button type="button" aria-label={`פחות ${chip.label}`} className={`${btnSecondary} px-3`} onClick={() => set(chip.id, counts[chip.id] - 1)}>
@@ -56,13 +57,16 @@ function Counter({ onClose, onSave }: Pick<Props, 'onClose' | 'onSave'>) {
         ))}
       </ul>
       <p className="text-center text-lg font-bold">
-        סה״כ: <Money value={total} />
+        סה״כ: <bdi dir="ltr" className="font-num">{total}</bdi> צ׳יפים = <Money value={nis} />
       </p>
+      {total % CHIPS_PER_NIS !== 0 && (
+        <p className="text-center text-sm text-amber-300">הסכום מעוגל לשקל השלם הקרוב. 10 צ׳יפים הם שקל אחד.</p>
+      )}
       <div className="flex gap-2">
         <button type="button" className={`${btnSecondary} flex-1`} onClick={onClose}>
           ביטול
         </button>
-        <button type="button" className={`${btnPrimary} flex-1`} onClick={() => onSave(total, formatChipNote(counts as ChipCounts))}>
+        <button type="button" className={`${btnPrimary} flex-1`} onClick={() => onSave(nis, formatChipNote(counts as ChipCounts))}>
           שמור Cash-out
         </button>
       </div>

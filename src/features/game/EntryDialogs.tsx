@@ -18,7 +18,7 @@ interface Props {
   onSubmit: (kind: 'buy_in' | 'rebuy', playerId: string, amount: number) => Promise<void>
 }
 
-const PRESETS = [100, 250, 500]
+const PRESETS = [25, 50, 100]
 
 /**
  * Buy-in: pick an amount and log it.

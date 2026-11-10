@@ -65,7 +65,7 @@ export function SettingsPanel({ bundle, result, canManage, onAddPlayer, onRemove
         <h2 className="font-bold">מארח ודמי כניסה</h2>
         <p className="text-sm text-slate-400">
           {hasHost
-            ? 'יש מארח: אורח משלם 10 ₪ (5 לקופה הקבוצתית + 5 למארח). מארח ובן/בת זוג משלמים 10 ₪ לקופה.'
+            ? 'יש מארח: אורח משלם 10 ₪ (5 לקופה הקבוצתית + 5 למארח). כל מארח משלם רק 5 ₪ לקופה.'
             : 'אין מארח (מקום ניטרלי): כל שחקן משלם 10 ₪ וכל הסכום הולך לקופה הקבוצתית. אין דמי אירוח.'}
         </p>
         <ul className="space-y-2">

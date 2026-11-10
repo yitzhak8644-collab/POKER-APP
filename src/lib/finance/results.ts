@@ -1,6 +1,5 @@
-import { ENTRY_FEE } from './config'
 import { playerNet } from './balance'
-import { hostPayoutFor, obligationOf } from './fees'
+import { entryFeeFor, hostPayoutFor, obligationOf } from './fees'
 import type { Fees, Player, PlayerResult, SettledPlayer } from './types'
 
 export function playerResult(p: Player, fees: Fees): PlayerResult {
@@ -12,7 +11,7 @@ export function playerResult(p: Player, fees: Fees): PlayerResult {
     invested: p.invested,
     cashOut: p.cashOut,
     net,
-    entryFee: ENTRY_FEE,
+    entryFee: entryFeeFor(p, fees),
     hostPayout: hostPayoutFor(p, fees),
     obligation: net === null ? null : obligationOf(net, p, fees),
   }

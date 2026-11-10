@@ -109,7 +109,7 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
       {result.players.every((p) => p.obligation !== null) && result.players.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-bold">חשבון לכל שחקן</h2>
-          <p className="text-xs text-slate-400">פוקר − 10 ₪ דמי כניסה{result.fees.hasHost ? ' + דמי אירוח למארח' : ''}</p>
+          <p className="text-xs text-slate-400">פוקר − דמי כניסה (10 ₪, מארח 5 ₪){result.fees.hasHost ? ' + דמי אירוח למארח' : ''}</p>
           <ul className="space-y-2">
             {result.players.map((p) => (
               <li key={p.id} className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-3 text-sm">

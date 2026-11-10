@@ -1,4 +1,4 @@
-import { ENTRY_FEE, PAYBOX_ID, PAYBOX_LABEL } from './config'
+import { PAYBOX_ID, PAYBOX_LABEL } from './config'
 import type { SettledPlayer, Transfer } from './types'
 
 const RLM = '‏' // right-to-left mark: forces an RTL line / keeps names from flipping punctuation
@@ -34,7 +34,7 @@ const money = (n: number): string => `${LRM}${n}${NBSP}₪${LRM}`
 const signed = (n: number): string => `${LRM}${n > 0 ? '+' : ''}${n}${NBSP}₪${LRM}`
 
 function playerLine(p: SettledPlayer): string {
-  const parts = [`פוקר ${signed(p.net)}`, `כניסה ${signed(-ENTRY_FEE)}`]
+  const parts = [`פוקר ${signed(p.net)}`, `כניסה ${signed(-p.entryFee)}`]
   if (p.hostPayout > 0) parts.push(`אירוח ${signed(p.hostPayout)}`)
   return `${RLM}• ${p.name}${RLM}: ${parts.join(', ')} = *${signed(p.obligation)}*`
 }

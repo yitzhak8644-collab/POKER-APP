@@ -39,11 +39,11 @@ describe('toEnginePlayers / deriveGame', () => {
     expect(players.find((p) => p.id === 'H')).toMatchObject({ invested: 100, cashOut: 140, role: 'host' })
   })
 
-  it('matches the engine golden example: ready, fund 35, 4 transfers, summary dated like the game', () => {
+  it('matches the engine golden example: ready, fund 25, 3 transfers, summary dated like the game', () => {
     const result = deriveGame(golden())
     expect(result.ready).toBe(true)
-    expect(result.fees).toMatchObject({ groupFund: 35, hostPayout: 15 })
-    expect(result.transfers).toHaveLength(4)
+    expect(result.fees).toMatchObject({ groupFund: 25, hostPayout: 15 })
+    expect(result.transfers).toHaveLength(3)
     expect(result.transfers.some((t) => t.to === PAYBOX_ID)).toBe(true)
     expect(result.summary).toContain('05/11/2026')
   })
@@ -133,8 +133,8 @@ describe('buildSnapshot', () => {
   it('keeps the numbers that were settled (and is JSON-serialisable for the RPC)', () => {
     const result = deriveGame(golden())
     const snapshot = JSON.parse(JSON.stringify(buildSnapshot(result)))
-    expect(snapshot).toMatchObject({ version: 1, pot: 550, fees: { groupFund: 35, hostPayout: 15 } })
-    expect(snapshot.transfers).toHaveLength(4)
+    expect(snapshot).toMatchObject({ version: 1, pot: 550, fees: { groupFund: 25, hostPayout: 15 } })
+    expect(snapshot.transfers).toHaveLength(3)
     expect(snapshot.players).toHaveLength(5)
   })
 })
@@ -150,8 +150,8 @@ describe('log notes (chips counted for a cash-out)', () => {
     expect(byPlayer).toEqual({ A: 'אדום×10, ירוק×8', B: null })
   })
 
-  it('the default buy-in is 250 (a rebuy stack) when nobody has bought in yet', () => {
-    expect(FALLBACK_BUY_IN).toBe(250)
-    expect(defaultBuyInAmount([])).toBe(250)
+  it('the default buy-in is 25 (one rebuy stack) when nobody has bought in yet', () => {
+    expect(FALLBACK_BUY_IN).toBe(25)
+    expect(defaultBuyInAmount([])).toBe(25)
   })
 })

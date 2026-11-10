@@ -15,7 +15,7 @@ describe('computeGame — golden example #1 (host + spouse + 3 guests)', () => {
     expect(game.ready).toBe(true)
     expect(game.pot).toBe(500)
     expect(game.check.status).toBe('ok')
-    expect(game.fees).toMatchObject({ groupFund: 35, hostPayout: 15, errors: [] })
+    expect(game.fees).toMatchObject({ groupFund: 25, hostPayout: 15, errors: [] })
   })
 
   it('per-player net and total obligation', () => {
@@ -24,7 +24,7 @@ describe('computeGame — golden example #1 (host + spouse + 3 guests)', () => {
       H: 40, S: -20, A: -50, B: 10, C: 20,
     })
     expect(Object.fromEntries(Object.entries(byId).map(([id, p]) => [id, p.obligation]))).toEqual({
-      H: 45, S: -30, A: -60, B: 0, C: 10,
+      H: 50, S: -25, A: -60, B: 0, C: 10,
     })
     expect(byId.H?.hostPayout).toBe(15)
     expect(byId.S?.hostPayout).toBe(0)
@@ -32,15 +32,14 @@ describe('computeGame — golden example #1 (host + spouse + 3 guests)', () => {
 
   it('SUM(obligation) == -groupFund', () => {
     const total = game.players.reduce((s, p) => s + (p.obligation as number), 0)
-    expect(total).toBe(-35)
+    expect(total).toBe(-25)
   })
 
-  it('settles in 4 transfers', () => {
+  it('settles in 3 transfers', () => {
     expect(game.transfers).toEqual([
-      { from: 'A', to: 'H', amount: 45 },
-      { from: 'S', to: PAYBOX_ID, amount: 30 },
+      { from: 'S', to: PAYBOX_ID, amount: 25 },
+      { from: 'A', to: 'H', amount: 50 },
       { from: 'A', to: 'C', amount: 10 },
-      { from: 'A', to: PAYBOX_ID, amount: 5 },
     ])
   })
 
@@ -52,22 +51,21 @@ describe('computeGame — golden example #1 (host + spouse + 3 guests)', () => {
         '',
         `${R}🔴 *שחקנים במינוס*`,
         `${R}• A${R}: פוקר ${L}-50\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}-60\u00A0₪${L}*`,
-        `${R}• S${R}: פוקר ${L}-20\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}-30\u00A0₪${L}*`,
+        `${R}• S${R}: פוקר ${L}-20\u00A0₪${L}, כניסה ${L}-5\u00A0₪${L} = *${L}-25\u00A0₪${L}*`,
         '',
         `${R}🟢 *שחקנים בפלוס*`,
-        `${R}• H${R}: פוקר ${L}+40\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}+45\u00A0₪${L}*`,
+        `${R}• H${R}: פוקר ${L}+40\u00A0₪${L}, כניסה ${L}-5\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}+50\u00A0₪${L}*`,
         `${R}• C${R}: פוקר ${L}+20\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}+10\u00A0₪${L}*`,
         '',
         `${R}⚪ *שחקנים מאוזנים*`,
         `${R}• B${R}: פוקר ${L}+10\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}0\u00A0₪${L}*`,
         '',
-        `${R}🏦 *קופה קבוצתית שנאספה*: ${L}35\u00A0₪${L}`,
+        `${R}🏦 *קופה קבוצתית שנאספה*: ${L}25\u00A0₪${L}`,
         '',
         `${R}💸 *העברות*`,
-        `${R}• A${R} משלם ל-H${R} ${L}45\u00A0₪${L}`,
-        `${R}• S${R} משלם ל-קופת PayBox${R} ${L}30\u00A0₪${L}`,
+        `${R}• S${R} משלם ל-קופת PayBox${R} ${L}25\u00A0₪${L}`,
+        `${R}• A${R} משלם ל-H${R} ${L}50\u00A0₪${L}`,
         `${R}• A${R} משלם ל-C${R} ${L}10\u00A0₪${L}`,
-        `${R}• A${R} משלם ל-קופת PayBox${R} ${L}5\u00A0₪${L}`,
       ].join('\n'),
     )
   })
@@ -113,9 +111,9 @@ describe('computeGame — edge cases', () => {
       DATE,
     )
     expect(game.ready).toBe(true)
-    expect(game.players.find((p) => p.id === 'H')?.obligation).toBe(-25)
-    expect(game.transfers).toEqual([{ from: 'H', to: PAYBOX_ID, amount: 25 }])
-    expect(game.summary).toContain(`אירוח ${L}+15\u00A0₪${L} = *${L}-25\u00A0₪${L}*`)
+    expect(game.players.find((p) => p.id === 'H')?.obligation).toBe(-20)
+    expect(game.transfers).toEqual([{ from: 'H', to: PAYBOX_ID, amount: 20 }])
+    expect(game.summary).toContain(`אירוח ${L}+15\u00A0₪${L} = *${L}-20\u00A0₪${L}*`)
   })
 
   it('a busted player (cash-out 0) is valid, not missing', () => {
@@ -227,7 +225,7 @@ describe('computeGame — properties (500 seeded random games)', () => {
       const hosts = players.filter((p) => p.role === 'host').length
       const spouses = players.filter((p) => p.role === 'host_spouse').length
       const guests = players.length - hosts - spouses
-      const expectedFund = hosts > 0 ? 5 * guests + 10 * (hosts + spouses) : 10 * players.length
+      const expectedFund = hosts > 0 ? 5 * guests + 5 * (hosts + spouses) : 10 * players.length
       const expectedPayout = hosts > 0 ? 5 * guests : 0
       expect(game.fees.groupFund).toBe(expectedFund)
       expect(game.fees.hostPayout).toBe(expectedPayout)

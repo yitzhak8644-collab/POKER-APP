@@ -3,7 +3,7 @@ import type { GameBundle, GamePlayerRow, TransactionRow } from './types'
 
 export const OWNER_LABEL = 'מנהל השולחן'
 export const UNKNOWN_ACTOR_LABEL = 'שחקן'
-export const FALLBACK_BUY_IN = 250
+export const FALLBACK_BUY_IN = 25
 
 export function toLedgerRows(transactions: readonly TransactionRow[]): LedgerRow[] {
   return transactions.map((t) => ({

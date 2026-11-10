@@ -3,7 +3,7 @@ import { hostPayoutFor, computeFees, obligationOf } from '../fees'
 import { goldenNeutral, goldenWithHost, guest, player } from './helpers'
 
 describe('computeFees — with a host', () => {
-  it('host + spouse + 3 guests: fund = 5*3 + 10*2 = 35, host payout = 15', () => {
+  it('host + spouse + 3 guests: fund = 5*3 + 5*2 = 25, host payout = 15', () => {
     const f = computeFees(goldenWithHost())
     expect(f).toMatchObject({
       players: 5,
@@ -11,25 +11,25 @@ describe('computeFees — with a host', () => {
       hostSide: 2,
       hasHost: true,
       hostId: 'H',
-      groupFund: 35,
+      groupFund: 25,
       hostPayout: 15,
       errors: [],
     })
   })
 
-  it('host + guests (no spouse): fund = 5*G + 10, payout = 5*G', () => {
+  it('host + guests (no spouse): fund = 5*G + 5, payout = 5*G', () => {
     const f = computeFees([player('H', 'host', 0, 0), guest('a', 0, 0), guest('b', 0, 0)])
-    expect(f).toMatchObject({ guests: 2, hostSide: 1, groupFund: 20, hostPayout: 10, errors: [] })
+    expect(f).toMatchObject({ guests: 2, hostSide: 1, groupFund: 15, hostPayout: 10, errors: [] })
   })
 
-  it('host alone: fund = 10, payout = 0', () => {
+  it('host alone: fund = 5, payout = 0', () => {
     const f = computeFees([player('H', 'host', 0, 0)])
-    expect(f).toMatchObject({ hasHost: true, groupFund: 10, hostPayout: 0, errors: [] })
+    expect(f).toMatchObject({ hasHost: true, groupFund: 5, hostPayout: 0, errors: [] })
   })
 
-  it('host + spouse only: fund = 20, payout = 0', () => {
+  it('host + spouse only: fund = 10, payout = 0', () => {
     const f = computeFees([player('H', 'host', 0, 0), player('S', 'host_spouse', 0, 0)])
-    expect(f).toMatchObject({ groupFund: 20, hostPayout: 0, errors: [] })
+    expect(f).toMatchObject({ groupFund: 10, hostPayout: 0, errors: [] })
   })
 
   it('payout = 5 * guests for any guest count', () => {
@@ -40,7 +40,7 @@ describe('computeFees — with a host', () => {
       ]
       const f = computeFees(players)
       expect(f.hostPayout).toBe(5 * g)
-      expect(f.groupFund).toBe(5 * g + 10)
+      expect(f.groupFund).toBe(5 * g + 5)
     }
   })
 
@@ -103,16 +103,16 @@ describe('hostPayoutFor / obligationOf', () => {
     expect(hostPayoutFor({ id: 'A' }, fees)).toBe(0)
   })
 
-  it('obligation = net - 10 (+ payout for the host)', () => {
-    expect(obligationOf(40, { id: 'H' }, fees)).toBe(45)
-    expect(obligationOf(-20, { id: 'S' }, fees)).toBe(-30)
-    expect(obligationOf(-50, { id: 'A' }, fees)).toBe(-60)
-    expect(obligationOf(10, { id: 'B' }, fees)).toBe(0)
+  it('obligation = net - entry fee (+ payout for the host); hosts pay only 5', () => {
+    expect(obligationOf(40, { id: 'H', role: 'host' }, fees)).toBe(50)
+    expect(obligationOf(-20, { id: 'S', role: 'host_spouse' }, fees)).toBe(-25)
+    expect(obligationOf(-50, { id: 'A', role: 'guest' }, fees)).toBe(-60)
+    expect(obligationOf(10, { id: 'B', role: 'guest' }, fees)).toBe(0)
   })
 
   it('nobody gets a payout in a neutral venue', () => {
     const neutral = computeFees(goldenNeutral())
     expect(hostPayoutFor({ id: 'A' }, neutral)).toBe(0)
-    expect(obligationOf(30, { id: 'A' }, neutral)).toBe(20)
+    expect(obligationOf(30, { id: 'A', role: 'guest' }, neutral)).toBe(20)
   })
 })

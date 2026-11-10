@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHIPS, REBUY_AMOUNT, REBUY_STACK, chipPhrase, formatChipNote, stackFor, stackValue } from './chips'
+import { CHIPS, CHIPS_PER_NIS, REBUY_AMOUNT, REBUY_STACK, chipPhrase, chipsToNis, formatChipNote, stackFor, stackValue } from './chips'
 
 const byId = Object.fromEntries(CHIPS.map((c) => [c.id, c]))
 
@@ -11,10 +11,11 @@ describe('chips', () => {
     expect(CHIPS.map((c) => c.label)).toEqual(['אדום', 'ירוק', 'כחול', 'שחור', 'צהוב'])
   })
 
-  it('a rebuy is 250 and is 10 red + 10 green + 4 blue, with no black or yellow', () => {
-    expect(REBUY_AMOUNT).toBe(250)
+  it('a rebuy is 25 NIS = 250 chips: 10 red + 10 green + 4 blue, with no black or yellow', () => {
+    expect(CHIPS_PER_NIS).toBe(10)
+    expect(REBUY_AMOUNT).toBe(25)
     expect(REBUY_STACK).toEqual({ red: 10, green: 10, blue: 4 })
-    expect(stackValue(REBUY_STACK)).toBe(250)
+    expect(stackValue(REBUY_STACK)).toBe(REBUY_AMOUNT * CHIPS_PER_NIS)
     expect(REBUY_STACK.black).toBeUndefined()
     expect(REBUY_STACK.yellow).toBeUndefined()
   })
@@ -35,15 +36,25 @@ describe('stackValue', () => {
   })
 })
 
+describe('chipsToNis', () => {
+  it('10 chips are 1 NIS, rounded to the nearest shekel', () => {
+    expect(chipsToNis(250)).toBe(25)
+    expect(chipsToNis(0)).toBe(0)
+    expect(chipsToNis(14)).toBe(1)
+    expect(chipsToNis(15)).toBe(2)
+    expect(chipsToNis(1000)).toBe(100)
+  })
+})
+
 describe('stackFor', () => {
-  it('gives the standard stack for 250 and whole multiples of it', () => {
-    expect(stackFor(250)).toEqual({ red: 10, green: 10, blue: 4 })
-    expect(stackFor(500)).toEqual({ red: 20, green: 20, blue: 8 })
-    expect(stackValue(stackFor(750)!)).toBe(750)
+  it('gives the standard stack for 25 NIS and whole multiples of it', () => {
+    expect(stackFor(25)).toEqual({ red: 10, green: 10, blue: 4 })
+    expect(stackFor(50)).toEqual({ red: 20, green: 20, blue: 8 })
+    expect(stackValue(stackFor(75)!)).toBe(750)
   })
 
   it('has no standard stack for other amounts', () => {
-    for (const amount of [0, -250, 100, 251, 125.5, Number.NaN]) expect(stackFor(amount)).toBeNull()
+    for (const amount of [0, -25, 10, 26, 12.5, Number.NaN]) expect(stackFor(amount)).toBeNull()
   })
 })
 

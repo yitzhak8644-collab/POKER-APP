@@ -1,4 +1,4 @@
-/** The table's chips. Values are whole NIS. */
+/** The table's chips. A chip's `value` is its face value in chips: 10 chips = 1 NIS. */
 export type ChipId = 'red' | 'green' | 'blue' | 'black' | 'yellow'
 
 export interface ChipDef {
@@ -20,13 +20,16 @@ export const CHIPS: readonly ChipDef[] = [
 
 export type ChipCounts = Partial<Record<ChipId, number>>
 
-/** Every rebuy is 250. */
-export const REBUY_AMOUNT = 250
+/** Chips per shekel: 250 chips are worth 25 NIS. */
+export const CHIPS_PER_NIS = 10
 
-/** A rebuy is handed out in red, green and blue only (no black or yellow): 50 + 100 + 100. */
+/** Every rebuy is 25 NIS = 250 chips. */
+export const REBUY_AMOUNT = 25
+
+/** A rebuy is handed out in red, green and blue only (no black or yellow): 50 + 100 + 100 = 250 chips. */
 export const REBUY_STACK: Readonly<ChipCounts> = { red: 10, green: 10, blue: 4 }
 
-/** Total value of a stack. Counts must be whole, non-negative numbers. */
+/** Total value of a stack in chips. Counts must be whole, non-negative numbers. */
 export function stackValue(counts: ChipCounts): number {
   let total = 0
   for (const chip of CHIPS) {
@@ -39,7 +42,12 @@ export function stackValue(counts: ChipCounts): number {
   return total
 }
 
-/** The chips to hand out for an amount: one rebuy stack per 250, otherwise `null` (no standard stack). */
+/** Chips to whole NIS (rounded to the nearest shekel: 5 chips = half a shekel). */
+export function chipsToNis(chips: number): number {
+  return Math.round(chips / CHIPS_PER_NIS)
+}
+
+/** The chips to hand out for an amount in NIS: one rebuy stack per 25 NIS, otherwise `null` (no standard stack). */
 export function stackFor(amount: number): ChipCounts | null {
   if (!Number.isInteger(amount) || amount <= 0 || amount % REBUY_AMOUNT !== 0) return null
   const times = amount / REBUY_AMOUNT

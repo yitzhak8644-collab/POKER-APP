@@ -9,8 +9,8 @@ import type { FeeError, Fees, Player } from './types'
 /**
  * Entry-fee allocation. The host is OPTIONAL.
  *
- * With a host:    guest -> 5 fund + 5 host; host & spouse -> 10 fund.
- *                 groupFund = 5*guests + 10*(host + spouse); hostPayout = 5*guests.
+ * With a host:    guest -> 5 fund + 5 host; host & spouse -> 5 fund.
+ *                 groupFund = 5*guests + 5*(host + spouse); hostPayout = 5*guests.
  * Without a host (neutral venue): everyone pays 10, all of it to the fund.
  *                 groupFund = 10*players; hostPayout = 0.
  *
@@ -53,12 +53,17 @@ export function computeFees(players: readonly Player[]): Fees {
   }
 }
 
+/** Entry fee this player pays: hosts pay only their 5 to the fund; everyone else pays the flat 10. */
+export function entryFeeFor(p: Pick<Player, 'role'>, fees: Fees): number {
+  return fees.hasHost && p.role !== 'guest' ? HOST_SIDE_FUND : ENTRY_FEE
+}
+
 /** Hosting payout received by this player (non-zero only for the host). */
 export function hostPayoutFor(p: Pick<Player, 'id'>, fees: Fees): number {
   return p.id === fees.hostId ? fees.hostPayout : 0
 }
 
-/** Total net obligation = poker net - entry fee + host payout (if host). */
-export function obligationOf(net: number, p: Pick<Player, 'id'>, fees: Fees): number {
-  return net - ENTRY_FEE + hostPayoutFor(p, fees)
+/** Total net obligation = poker net - this player's entry fee + host payout (if host). */
+export function obligationOf(net: number, p: Pick<Player, 'id' | 'role'>, fees: Fees): number {
+  return net - entryFeeFor(p, fees) + hostPayoutFor(p, fees)
 }
