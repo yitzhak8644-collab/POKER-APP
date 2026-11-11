@@ -40,7 +40,7 @@ describe('buildWhatsAppSummary', () => {
   })
 
   it('lists plus then minus, each player as "name amount" with the FINAL obligation', () => {
-    const text = build([sp('h', 40, 15), sp('a', -50)])
+    const text = build([sp('h', 40, 15), sp('a', -50), sp('e', 10)])
     expect(text).toBe(
       [
         `${R}🃏 *סיכום ערב פוקר* · 05/11/2026`,
@@ -50,6 +50,9 @@ describe('buildWhatsAppSummary', () => {
         '',
         `${R}*מינוס:*`,
         `${R}a${R} ${L}-60\u00A0₪${L}`,
+        '',
+        `${R}*מאוזן:*`,
+        `${R}e${R} ${L}0\u00A0₪${L}`,
       ].join('\n'),
     )
   })
@@ -69,11 +72,11 @@ describe('buildWhatsAppSummary', () => {
     expect(text).toContain(`${R}h${R} ${L}-25\u00A0₪${L}`)
   })
 
-  it('classifies by the FINAL obligation: +10 poker minus the fee is balanced and not listed', () => {
+  it('classifies by the FINAL net amount: +10 poker minus the fee is balanced, listed with 0', () => {
     const text = build([sp('b', 10), sp('a', 30)])
     expect(text).toContain('פלוס:')
     expect(text).not.toContain('מינוס:')
-    expect(text).not.toContain(`${R}b${R}`)
+    expect(text).toContain(`${R}*מאוזן:*\n${R}b${R} ${L}0\u00A0₪${L}`)
   })
 
   it('omits empty sections', () => {
@@ -93,6 +96,6 @@ describe('buildWhatsAppSummary', () => {
       sp('r', 30), // +20
     ])
     const order = [...text.matchAll(/‏(\w)‏ /g)].map((m) => m[1])
-    expect(order).toEqual(['q', 'r', 'z', 'a', 'b', 'x'])
+    expect(order).toEqual(['q', 'r', 'z', 'a', 'b', 'x', 'p'])
   })
 })

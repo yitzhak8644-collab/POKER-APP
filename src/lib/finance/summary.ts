@@ -36,14 +36,15 @@ function playerLine(p: SettledPlayer): string {
 }
 
 /**
- * Hebrew WhatsApp summary: only who is in the plus and who is in the minus (final amounts), no
- * "who pays whom". Players who end exactly at zero owe and are owed nothing, so they are not listed.
+ * Hebrew WhatsApp summary: who is in the plus, in the minus, and balanced at zero, with each player's
+ * NET amount (poker result minus entry fee, plus the hosting payout for the host). No "who pays whom".
  */
 export function buildWhatsAppSummary(input: SummaryInput): string {
   const sorted = (rows: SettledPlayer[]): SettledPlayer[] =>
     rows.sort((a, b) => a.obligation - b.obligation || (a.id < b.id ? -1 : 1))
   const losers = sorted(input.players.filter((p) => p.obligation < 0))
   const winners = sorted(input.players.filter((p) => p.obligation > 0)).reverse()
+  const even = sorted(input.players.filter((p) => p.obligation === 0))
 
   const lines: string[] = [`${RLM}🃏 *סיכום ערב פוקר* · ${formatDate(input.date)}`]
   const section = (title: string, rows: SettledPlayer[]): void => {
@@ -52,5 +53,6 @@ export function buildWhatsAppSummary(input: SummaryInput): string {
   }
   section('פלוס:', winners)
   section('מינוס:', losers)
+  section('מאוזן:', even)
   return lines.join('\n')
 }

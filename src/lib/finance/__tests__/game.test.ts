@@ -55,6 +55,9 @@ describe('computeGame — golden example #1 (host + spouse + 3 guests)', () => {
         `${R}*מינוס:*`,
         `${R}A${R} ${L}-60\u00A0₪${L}`,
         `${R}S${R} ${L}-25\u00A0₪${L}`,
+        '',
+        `${R}*מאוזן:*`,
+        `${R}B${R} ${L}0\u00A0₪${L}`,
       ].join('\n'),
     )
   })
