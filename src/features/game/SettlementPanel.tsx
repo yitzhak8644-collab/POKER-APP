@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PAYBOX_ID, PAYBOX_LABEL, type GameResult } from '../../lib/finance'
+import { CHIPS_PER_NIS, chipsToNis } from '../../lib/chips'
 import { Dialog } from '../../components/Dialog'
 import { PayBoxLink } from '../../components/PayBoxLink'
 import { Avatar, btnDanger, btnPrimary, btnSecondary, inputCls, Money } from '../../components/ui'
@@ -254,22 +255,24 @@ function CashOutForm({ playerName, onSave }: { playerName: string; onSave: (amou
   const [text, setText] = useState('')
   const [counting, setCounting] = useState(false)
   const { run, busy, error } = useAction()
-  const amount = Number(text)
-  const valid = text !== '' && Number.isInteger(amount) && amount >= 0
+  // The box takes CHIPS (what the player counted); the ledger stores whole NIS (10 chips = 1 NIS).
+  const chips = Number(text)
+  const valid = text !== '' && Number.isInteger(chips) && chips >= 0
+  const nis = valid ? chipsToNis(chips) : 0
   return (
     <div className="space-y-1">
       <form
         className="flex items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          if (valid) void run(() => onSave(amount)).then((r) => r.ok && setText(''))
+          if (valid) void run(() => onSave(nis, `${chips} צ׳יפים`)).then((r) => r.ok && setText(''))
         }}
       >
         <input
-          aria-label="סכום Cash-out"
+          aria-label="כמות צ׳יפים ל-Cash-out"
           inputMode="numeric"
           dir="ltr"
-          placeholder="0"
+          placeholder="צ׳יפים"
           className={`${inputCls} font-num w-24`}
           value={text}
           onChange={(e) => setText(e.target.value.replace(/\D/g, ''))}
@@ -281,6 +284,15 @@ function CashOutForm({ playerName, onSave }: { playerName: string; onSave: (amou
           ספירה
         </button>
       </form>
+      {valid && (
+        <p className="text-xs text-slate-400">
+          <bdi dir="ltr" className="font-num">
+            {chips}
+          </bdi>{' '}
+          צ׳יפים = <Money value={nis} />
+          {chips % CHIPS_PER_NIS !== 0 ? ' (מעוגל לשקל)' : ''}
+        </p>
+      )}
       {error !== null && (
         <p role="alert" className="text-xs text-rose-400">
           {error}

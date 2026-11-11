@@ -199,8 +199,8 @@ export function GamePage() {
           result={result}
           seats={bundle.players}
           canWrite={isOpen}
-          onBuyIn={(playerId) => setPending({ kind: 'buy_in', playerId, step: 'amount' })}
-          onRebuy={(playerId) => setPending({ kind: 'rebuy', playerId, step: 'warn' })}
+          onBuyIn={(playerId) => setPending({ kind: 'buy_in', playerId })}
+          onRebuy={(playerId) => setPending({ kind: 'rebuy', playerId })}
         />
       )}
       {tab === 'seats' && (
@@ -242,7 +242,6 @@ export function GamePage() {
         playerName={pendingName}
         defaultAmount={defaultAmount}
         onCancel={() => setPending(null)}
-        onContinue={() => setPending((p) => (p ? { ...p, step: 'amount' } : p))}
         onSubmit={submitEntry}
       />
       {toast !== null && (

@@ -4,16 +4,15 @@ import { Dialog } from '../../components/Dialog'
 import { btnPrimary, btnSecondary, inputCls } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
 import { REBUY_AMOUNT, stackFor } from '../../lib/chips'
-import { REBUY_WARNING, TX_LABEL } from './labels'
+import { TX_LABEL } from './labels'
 
-export type Pending = { kind: 'buy_in' | 'rebuy'; playerId: string; step: 'warn' | 'amount' } | null
+export type Pending = { kind: 'buy_in' | 'rebuy'; playerId: string } | null
 
 interface Props {
   pending: Pending
   playerName: string
   defaultAmount: number
   onCancel: () => void
-  onContinue: () => void
   /** Logs the entry. Resolves when it was saved. */
   onSubmit: (kind: 'buy_in' | 'rebuy', playerId: string, amount: number) => Promise<void>
 }
@@ -22,40 +21,69 @@ const PRESETS = [25, 50, 100]
 
 /**
  * Buy-in: pick an amount and log it.
- * Rebuy: a blocking alert first ("log it in the app FIRST, only then take the chips"),
- * and only after an explicit confirmation tap the amount is chosen and logged.
+ * Rebuy: a single fixed option (25 NIS = one chip stack); the tap on "Rebuy" already is the intent.
  */
-export function EntryDialogs({ pending, playerName, defaultAmount, onCancel, onContinue, onSubmit }: Props) {
-  const showWarning = pending?.kind === 'rebuy' && pending.step === 'warn'
-  const showAmount = pending !== null && !showWarning
+export function EntryDialogs({ pending, playerName, defaultAmount, onCancel, onSubmit }: Props) {
+  const showRebuy = pending?.kind === 'rebuy'
+  const showBuyIn = pending?.kind === 'buy_in'
 
   return (
     <>
-      <Dialog open={showWarning} onClose={onCancel} title={`Rebuy · ${playerName}`} tone="warning">
-        <p role="alert" className="rounded-xl bg-amber-950 p-3 text-lg font-bold leading-snug text-amber-200">
-          {REBUY_WARNING}
-        </p>
-        <div className="flex gap-2">
-          <button type="button" className={`${btnSecondary} flex-1`} onClick={onCancel}>
-            ביטול
-          </button>
-          <button type="button" className={`${btnPrimary} flex-1`} onClick={onContinue}>
-            הבנתי, המשך
-          </button>
-        </div>
+      <Dialog open={showRebuy} onClose={onCancel} title={`Rebuy · ${playerName}`}>
+        {pending?.kind === 'rebuy' && (
+          <RebuyConfirm
+            key={pending.playerId}
+            onCancel={onCancel}
+            onSubmit={() => onSubmit('rebuy', pending.playerId, REBUY_AMOUNT)}
+          />
+        )}
       </Dialog>
-      <Dialog open={showAmount} onClose={onCancel} title={pending ? `${TX_LABEL[pending.kind]} · ${playerName}` : ''}>
-        {pending && (
+      <Dialog open={showBuyIn} onClose={onCancel} title={pending ? `${TX_LABEL[pending.kind]} · ${playerName}` : ''}>
+        {pending?.kind === 'buy_in' && (
           <AmountForm
             key={`${pending.kind}-${pending.playerId}`}
-            kind={pending.kind}
-            defaultAmount={pending.kind === 'rebuy' ? REBUY_AMOUNT : defaultAmount}
+            kind="buy_in"
+            defaultAmount={defaultAmount}
             onCancel={onCancel}
-            onSubmit={(amount) => onSubmit(pending.kind, pending.playerId, amount)}
+            onSubmit={(amount) => onSubmit('buy_in', pending.playerId, amount)}
           />
         )}
       </Dialog>
     </>
+  )
+}
+
+function RebuyConfirm({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: () => Promise<void> }) {
+  const { run, busy, error } = useAction()
+  const stack = stackFor(REBUY_AMOUNT)
+  return (
+    <div className="space-y-4">
+      <p className="text-center text-2xl font-bold">
+        <bdi dir="ltr" className="font-num">
+          {REBUY_AMOUNT}
+        </bdi>{' '}
+        ₪
+      </p>
+      {stack !== null && (
+        <div className="space-y-2 rounded-xl border border-slate-700 bg-slate-950 p-3">
+          <p className="text-sm text-slate-400">קחו מהקופסה:</p>
+          <ChipStack counts={stack} />
+        </div>
+      )}
+      {error !== null && (
+        <p role="alert" className="text-sm text-rose-400">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button type="button" className={`${btnSecondary} flex-1`} onClick={onCancel}>
+          ביטול
+        </button>
+        <button type="button" className={`${btnPrimary} flex-1`} disabled={busy} onClick={() => void run(onSubmit)}>
+          {busy ? 'רושם…' : 'רשום Rebuy'}
+        </button>
+      </div>
+    </div>
   )
 }
 
