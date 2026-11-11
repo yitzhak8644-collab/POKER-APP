@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PAYBOX_ID, PAYBOX_LABEL, type GameResult } from '../../lib/finance'
+import type { GameResult } from '../../lib/finance'
 import { CHIPS_PER_NIS, chipsToNis } from '../../lib/chips'
 import { Dialog } from '../../components/Dialog'
 import { PayBoxLink } from '../../components/PayBoxLink'
@@ -40,8 +40,6 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
 
   const activeCashOut = (playerId: string): TransactionRow | undefined =>
     bundle.transactions.find((t) => t.player_id === playerId && t.type === 'cash_out' && t.voided_at === null)
-  const names = new Map<string, string>(result.players.map((p) => [p.id, p.name]))
-  names.set(PAYBOX_ID, PAYBOX_LABEL)
 
   const text = bundle.settlement?.whatsapp_text ?? result.summary
   const copy = async () => {
@@ -136,19 +134,11 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
       {result.ready ? (
         <>
           <section className="space-y-2">
-            <h2 className="font-bold">העברות (Bit / PayBox)</h2>
-            <ul className="space-y-2">
-              {result.transfers.map((t) => (
-                <li key={`${t.from}-${t.to}`} className="rounded-2xl border border-slate-800 bg-slate-900 p-3">
-                  <span className="font-semibold">{names.get(t.from)}</span> משלם ל-
-                  <span className="font-semibold">{names.get(t.to)}</span> <Money value={t.amount} className="font-bold" />
-                </li>
-              ))}
-            </ul>
+            <h2 className="font-bold">קופה קבוצתית</h2>
             <p className="text-sm text-slate-400">
               קופה קבוצתית שנאספה: <Money value={result.fees.groupFund} />
             </p>
-            <p className="text-sm text-slate-300">מסדרים את התשלומים בקבוצת ה-PayBox:</p>
+            <p className="text-sm text-slate-300">תשלומים לקופה בקבוצת ה-PayBox:</p>
             <PayBoxLink />
           </section>
 

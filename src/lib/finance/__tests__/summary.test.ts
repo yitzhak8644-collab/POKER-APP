@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { PAYBOX_ID } from '../config'
 import { buildWhatsAppSummary, formatDate } from '../summary'
 import type { SettledPlayer, Transfer } from '../types'
 
@@ -35,57 +34,52 @@ describe('formatDate', () => {
 })
 
 describe('buildWhatsAppSummary', () => {
-  it('header has the date and the total pot, and the fund line is always present', () => {
-    const text = build([sp('a', -10)], [], 10, 300)
-    const lines = text.split('\n')
-    expect(lines[0]).toBe(`${R}🃏 *סיכום ערב פוקר*`)
-    expect(lines[1]).toBe(`${R}📅 05/11/2026 | 💰 קופת המשחק: ${L}300\u00A0₪${L}`)
-    expect(text).toContain(`${R}🏦 *קופה קבוצתית שנאספה*: ${L}10\u00A0₪${L}`)
+  it('header has the title and the date', () => {
+    const text = build([sp('a', -10)])
+    expect(text.split('\n')[0]).toBe(`${R}🃏 *סיכום ערב פוקר* · 05/11/2026`)
   })
 
-  it('losers: shows poker balance and the 10 NIS entry fee', () => {
-    const text = build([sp('a', -50)])
-    expect(text).toContain(`${R}🔴 *שחקנים במינוס*`)
-    expect(text).toContain(
-      `${R}• a${R}: פוקר ${L}-50\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L} = *${L}-60\u00A0₪${L}*`,
+  it('lists plus then minus, each player as "name amount" with the FINAL obligation', () => {
+    const text = build([sp('h', 40, 15), sp('a', -50)])
+    expect(text).toBe(
+      [
+        `${R}🃏 *סיכום ערב פוקר* · 05/11/2026`,
+        '',
+        `${R}*פלוס:*`,
+        `${R}h${R} ${L}+45\u00A0₪${L}`,
+        '',
+        `${R}*מינוס:*`,
+        `${R}a${R} ${L}-60\u00A0₪${L}`,
+      ].join('\n'),
     )
   })
 
-  it('winners: shows poker win, -10 entry fee, and the host payout for the host', () => {
-    const text = build([sp('h', 40, 15)])
-    expect(text).toContain(`${R}🟢 *שחקנים בפלוס*`)
-    expect(text).toContain(
-      `${R}• h${R}: פוקר ${L}+40\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}+45\u00A0₪${L}*`,
+  it('has no transfers, pot, fund, or per-player breakdown', () => {
+    const text = build(
+      [sp('a', -50), sp('b', 40, 15)],
+      [{ from: 'a', to: 'b', amount: 30 }],
     )
+    for (const word of ['העברות', 'משלם', 'קופה', 'פוקר +', 'כניסה', 'אירוח']) expect(text).not.toContain(word)
   })
 
-  it('a host who ends in the minus still shows the hosting payout in the minus section', () => {
+  it('a host who ends in the minus is listed in the minus section', () => {
     const text = build([sp('h', -30, 15)])
-    expect(text).toContain('שחקנים במינוס')
-    expect(text).not.toContain('שחקנים בפלוס')
-    expect(text).toContain(
-      `${R}• h${R}: פוקר ${L}-30\u00A0₪${L}, כניסה ${L}-10\u00A0₪${L}, אירוח ${L}+15\u00A0₪${L} = *${L}-25\u00A0₪${L}*`,
-    )
+    expect(text).toContain('מינוס:')
+    expect(text).not.toContain('פלוס:')
+    expect(text).toContain(`${R}h${R} ${L}-25\u00A0₪${L}`)
   })
 
-  it('no hosting line when nobody got a payout (neutral venue / host without guests)', () => {
-    expect(build([sp('a', 30), sp('h', 0)])).not.toContain('אירוח')
+  it('classifies by the FINAL obligation: +10 poker minus the fee is balanced and not listed', () => {
+    const text = build([sp('b', 10), sp('a', 30)])
+    expect(text).toContain('פלוס:')
+    expect(text).not.toContain('מינוס:')
+    expect(text).not.toContain(`${R}b${R}`)
   })
 
-  it('classifies by the FINAL obligation: +10 poker minus the fee is balanced', () => {
-    const text = build([sp('b', 10)])
-    expect(text).toContain('⚪ *שחקנים מאוזנים*')
-    expect(text).not.toContain('שחקנים במינוס')
-    expect(text).not.toContain('שחקנים בפלוס')
-    expect(text).toContain(`= *${L}0\u00A0₪${L}*`)
-  })
-
-  it('omits empty sections (no losers, no winners, no balanced, no transfers)', () => {
+  it('omits empty sections', () => {
     const text = build([sp('a', 30)])
-    expect(text).toContain('שחקנים בפלוס')
-    expect(text).not.toContain('שחקנים במינוס')
-    expect(text).not.toContain('מאוזנים')
-    expect(text).not.toContain('העברות')
+    expect(text).toContain('פלוס:')
+    expect(text).not.toContain('מינוס:')
   })
 
   it('orders losers most-negative first and winners most-positive first, ties by id', () => {
@@ -94,24 +88,11 @@ describe('buildWhatsAppSummary', () => {
       sp('z', -40), // -50
       sp('b', -20), // -30
       sp('a', -20), // -30 (tie with b)
-      sp('p', 10), // 0 -> balanced, not listed above
+      sp('p', 10), // 0 -> balanced, not listed
       sp('q', 60), // +50
       sp('r', 30), // +20
     ])
-    const order = [...text.matchAll(/• (\w)/g)].map((m) => m[1])
-    expect(order).toEqual(['z', 'a', 'b', 'x', 'q', 'r', 'p'])
-  })
-
-  it('transfers: "X pays Y amount", with the group fund named', () => {
-    const text = build(
-      [sp('a', -50), sp('b', 40)],
-      [
-        { from: 'a', to: 'b', amount: 30 },
-        { from: 'a', to: PAYBOX_ID, amount: 30 },
-      ],
-    )
-    expect(text).toContain(`${R}💸 *העברות*`)
-    expect(text).toContain(`${R}• a${R} משלם ל-b${R} ${L}30\u00A0₪${L}`)
-    expect(text).toContain(`${R}• a${R} משלם ל-קופת PayBox${R} ${L}30\u00A0₪${L}`)
+    const order = [...text.matchAll(/‏(\w)‏ /g)].map((m) => m[1])
+    expect(order).toEqual(['q', 'r', 'z', 'a', 'b', 'x'])
   })
 })
