@@ -5,7 +5,7 @@ import { Avatar, Badge, btnPrimary, btnSecondary } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
 import { NotificationPrompt } from '../features/push/NotificationPrompt'
 import { createGame, joinOpenGame } from '../features/games/api'
-import { MY_GAMES_KEY, OPEN_GAMES_KEY, useIsAdmin, useMyGames, useOpenGames } from '../features/games/hooks'
+import { MY_GAMES_KEY, MY_PLAYER_KEY, OPEN_GAMES_KEY, useIsAdmin, useMyGames, useMyPlayerGameIds, useOpenGames } from '../features/games/hooks'
 import { useAction } from '../hooks/useAction'
 import { toHebrewMessage } from '../lib/errors'
 import { formatGameDate, todayInIsrael } from '../lib/format'
@@ -17,6 +17,7 @@ export function HomePage() {
   const games = useMyGames()
   const openGames = useOpenGames()
   const isAdmin = useIsAdmin().data === true
+  const myPlayerIds = useMyPlayerGameIds()
   const joinOpen = useAction()
   const create = useAction()
 
@@ -57,7 +58,7 @@ export function HomePage() {
         {openGames.error && <p className="text-rose-400">{toHebrewMessage(openGames.error)}</p>}
 
         {open.map((o) => {
-          const isMember = games.data?.some((g) => g.id === o.game_id) ?? false
+          const isMember = myPlayerIds.data?.includes(o.game_id) ?? false
           return (
             <div key={o.game_id} className="space-y-2">
               <h2 className="font-bold text-emerald-300">יש שולחן פתוח!</h2>
@@ -67,7 +68,7 @@ export function HomePage() {
                   {formatGameDate(o.played_on)}
                 </bdi>
               </p>
-              {isMember || isAdmin ? (
+              {isMember ? (
                 <Link to={`/g/${o.game_id}`} className={`${btnPrimary} block w-full text-center`}>
                   כניסה לשולחן
                 </Link>
@@ -80,12 +81,18 @@ export function HomePage() {
                     const r = await joinOpen.run(() => joinOpenGame(o.game_id))
                     if (r.ok) {
                       void queryClient.invalidateQueries({ queryKey: MY_GAMES_KEY })
+                      void queryClient.invalidateQueries({ queryKey: MY_PLAYER_KEY })
                       navigate(`/g/${r.value}`)
                     }
                   }}
                 >
                   {joinOpen.busy ? 'מצטרף…' : 'הצטרפות'}
                 </button>
+              )}
+              {isAdmin && !isMember && (
+                <Link to={`/g/${o.game_id}`} className={`${btnSecondary} block w-full text-center`}>
+                  צפייה בשולחן (מנהל כללי)
+                </Link>
               )}
             </div>
           )

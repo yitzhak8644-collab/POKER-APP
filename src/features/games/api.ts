@@ -18,6 +18,16 @@ export async function fetchMyGames(): Promise<GameRow[]> {
   return unwrap<GameRow[]>(result)
 }
 
+/** Ids of games where the signed-in user is an actual player (admins see every game, so this is not "my games"). */
+export async function fetchMyPlayerGameIds(): Promise<string[]> {
+  const sb = getSupabase()
+  const { data: auth } = await sb.auth.getUser()
+  const uid = auth.user?.id
+  if (!uid) return []
+  const result = await sb.from('game_players').select('game_id').eq('user_id', uid)
+  return unwrap<{ game_id: string }[]>(result).map((r) => r.game_id)
+}
+
 export async function fetchOpenGames(): Promise<OpenGameRow[]> {
   const result = await getSupabase()
     .from('open_games')
