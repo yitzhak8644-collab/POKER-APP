@@ -1,7 +1,6 @@
-import { useState } from 'react'
 import { ChipStack } from '../../components/ChipStack'
 import { Dialog } from '../../components/Dialog'
-import { btnPrimary, btnSecondary, inputCls } from '../../components/ui'
+import { btnPrimary, btnSecondary } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
 import { REBUY_AMOUNT, stackFor } from '../../lib/chips'
 import { TX_LABEL } from './labels'
@@ -11,49 +10,39 @@ export type Pending = { kind: 'buy_in' | 'rebuy'; playerId: string } | null
 interface Props {
   pending: Pending
   playerName: string
-  defaultAmount: number
   onCancel: () => void
   /** Logs the entry. Resolves when it was saved. */
   onSubmit: (kind: 'buy_in' | 'rebuy', playerId: string, amount: number) => Promise<void>
 }
 
-const PRESETS = [25, 50, 100]
-
 /**
- * Buy-in: pick an amount and log it.
- * Rebuy: a single fixed option (25 NIS = one chip stack); the tap on "Rebuy" already is the intent.
+ * Buy-in and Rebuy each have exactly one option: 25 NIS = one chip stack (no other amount is approved).
+ * The tap on the button already is the intent, so there is just a confirmation with the chips to take.
  */
-export function EntryDialogs({ pending, playerName, defaultAmount, onCancel, onSubmit }: Props) {
-  const showRebuy = pending?.kind === 'rebuy'
-  const showBuyIn = pending?.kind === 'buy_in'
-
+export function EntryDialogs({ pending, playerName, onCancel, onSubmit }: Props) {
   return (
-    <>
-      <Dialog open={showRebuy} onClose={onCancel} title={`Rebuy · ${playerName}`}>
-        {pending?.kind === 'rebuy' && (
-          <RebuyConfirm
-            key={pending.playerId}
-            onCancel={onCancel}
-            onSubmit={() => onSubmit('rebuy', pending.playerId, REBUY_AMOUNT)}
-          />
-        )}
-      </Dialog>
-      <Dialog open={showBuyIn} onClose={onCancel} title={pending ? `${TX_LABEL[pending.kind]} · ${playerName}` : ''}>
-        {pending?.kind === 'buy_in' && (
-          <AmountForm
-            key={`${pending.kind}-${pending.playerId}`}
-            kind="buy_in"
-            defaultAmount={defaultAmount}
-            onCancel={onCancel}
-            onSubmit={(amount) => onSubmit('buy_in', pending.playerId, amount)}
-          />
-        )}
-      </Dialog>
-    </>
+    <Dialog open={pending !== null} onClose={onCancel} title={pending ? `${TX_LABEL[pending.kind]} · ${playerName}` : ''}>
+      {pending !== null && (
+        <FixedEntry
+          key={`${pending.kind}-${pending.playerId}`}
+          kind={pending.kind}
+          onCancel={onCancel}
+          onSubmit={() => onSubmit(pending.kind, pending.playerId, REBUY_AMOUNT)}
+        />
+      )}
+    </Dialog>
   )
 }
 
-function RebuyConfirm({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: () => Promise<void> }) {
+function FixedEntry({
+  kind,
+  onCancel,
+  onSubmit,
+}: {
+  kind: 'buy_in' | 'rebuy'
+  onCancel: () => void
+  onSubmit: () => Promise<void>
+}) {
   const { run, busy, error } = useAction()
   const stack = stackFor(REBUY_AMOUNT)
   return (
@@ -80,83 +69,9 @@ function RebuyConfirm({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: 
           ביטול
         </button>
         <button type="button" className={`${btnPrimary} flex-1`} disabled={busy} onClick={() => void run(onSubmit)}>
-          {busy ? 'רושם…' : 'רשום Rebuy'}
+          {busy ? 'רושם…' : `רשום ${TX_LABEL[kind]}`}
         </button>
       </div>
     </div>
-  )
-}
-
-function AmountForm({
-  kind,
-  defaultAmount,
-  onCancel,
-  onSubmit,
-}: {
-  kind: 'buy_in' | 'rebuy'
-  defaultAmount: number
-  onCancel: () => void
-  onSubmit: (amount: number) => Promise<void>
-}) {
-  const [text, setText] = useState(String(defaultAmount))
-  const { run, busy, error } = useAction()
-  const amount = Number(text)
-  const valid = Number.isInteger(amount) && amount > 0
-  const stack = valid ? stackFor(amount) : null
-
-  return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (valid) void run(() => onSubmit(amount))
-      }}
-    >
-      <div className="flex flex-wrap gap-2">
-        {PRESETS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setText(String(p))}
-            className={`${btnSecondary} ${amount === p ? 'border-emerald-500' : ''}`}
-          >
-            <bdi dir="ltr" className="font-num">
-              {p}
-            </bdi>
-          </button>
-        ))}
-      </div>
-      <label className="block space-y-1 text-sm text-slate-400">
-        סכום (₪)
-        <input
-          inputMode="numeric"
-          pattern="[0-9]*"
-          dir="ltr"
-          className={`${inputCls} font-num text-lg`}
-          value={text}
-          onChange={(e) => setText(e.target.value.replace(/\D/g, ''))}
-          autoFocus
-        />
-      </label>
-      {stack !== null && (
-        <div className="space-y-2 rounded-xl border border-slate-700 bg-slate-950 p-3">
-          <p className="text-sm text-slate-400">קחו מהקופסה:</p>
-          <ChipStack counts={stack} />
-        </div>
-      )}
-      {error !== null && (
-        <p role="alert" className="text-sm text-rose-400">
-          {error}
-        </p>
-      )}
-      <div className="flex gap-2">
-        <button type="button" className={`${btnSecondary} flex-1`} onClick={onCancel}>
-          ביטול
-        </button>
-        <button type="submit" className={`${btnPrimary} flex-1`} disabled={!valid || busy}>
-          {busy ? 'רושם…' : `רשום ${kind === 'rebuy' ? 'Rebuy' : 'Buy-in'}`}
-        </button>
-      </div>
-    </form>
   )
 }

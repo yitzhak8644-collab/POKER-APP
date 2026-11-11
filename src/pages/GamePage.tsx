@@ -15,7 +15,7 @@ import { TablePanel } from '../features/game/TablePanel'
 import { ZeroSumBanner } from '../features/game/ZeroSumBanner'
 import { adminDeleteGame } from '../features/games/api'
 import { MY_GAMES_KEY, OPEN_GAMES_KEY, useGameBundle, useGameRealtime, useIsAdmin } from '../features/games/hooks'
-import { buildLog, buildSnapshot, defaultBuyInAmount, deriveGame } from '../features/games/mapping'
+import { buildLog, buildSnapshot, deriveGame } from '../features/games/mapping'
 import { toHebrewMessage } from '../lib/errors'
 import { formatGameDate } from '../lib/format'
 
@@ -55,7 +55,7 @@ export function GamePage() {
   const derived = useMemo(() => {
     if (!bundle) return null
     try {
-      return { result: deriveGame(bundle), log: buildLog(bundle), defaultAmount: defaultBuyInAmount(bundle.transactions) }
+      return { result: deriveGame(bundle), log: buildLog(bundle) }
     } catch {
       return 'inconsistent' as const
     }
@@ -67,7 +67,7 @@ export function GamePage() {
     return <p className="p-6 text-center text-rose-400">הנתונים של המשחק לא עקביים. רעננו את הדף.</p>
   }
 
-  const { result, log, defaultAmount } = derived
+  const { result, log } = derived
   const tabParam = params.get('tab')
   const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'table'
   const isOwner = session?.user.id === bundle.game.owner_id || isAdmin
@@ -240,7 +240,6 @@ export function GamePage() {
       <EntryDialogs
         pending={pending}
         playerName={pendingName}
-        defaultAmount={defaultAmount}
         onCancel={() => setPending(null)}
         onSubmit={submitEntry}
       />
