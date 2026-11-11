@@ -49,6 +49,10 @@ export function HomePage() {
         </button>
       </header>
 
+      <Link to="/balance" className={`${btnSecondary} block w-full text-center`}>
+        📊 טבלת איזון כוללת
+      </Link>
+
       <PayBoxLink />
 
       <NotificationPrompt />

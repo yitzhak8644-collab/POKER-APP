@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { getSupabase } from '../../lib/supabase'
-import { fetchGameBundle, fetchIsAdmin, fetchMyGames, fetchMyPlayerGameIds, fetchOpenGames } from './api'
+import { fetchGameBundle, fetchIsAdmin, fetchMyGames, fetchMyPlayerGameIds, fetchOpenGames, fetchOverallBalance } from './api'
 import { applyBundleChange, needsRefetch, type RealtimeTable } from './realtime'
 import type { GameBundle } from './types'
 
@@ -13,6 +13,11 @@ export const OPEN_GAMES_KEY = ['open-games'] as const
 
 export const useIsAdmin = () =>
   useQuery({ queryKey: ['is-admin'], queryFn: fetchIsAdmin, staleTime: Infinity })
+
+export const BALANCE_KEY = ['overall-balance'] as const
+/** Refetches on open, on focus and every 30s, so a new sign-up or a just-closed game shows up. */
+export const useOverallBalance = () =>
+  useQuery({ queryKey: BALANCE_KEY, queryFn: fetchOverallBalance, staleTime: 0, refetchInterval: 30_000 })
 
 export const MY_PLAYER_KEY = ['my-player-games'] as const
 export const useMyPlayerGameIds = () => useQuery({ queryKey: MY_PLAYER_KEY, queryFn: fetchMyPlayerGameIds })

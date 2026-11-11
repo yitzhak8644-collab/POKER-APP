@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { isSupabaseConfigured } from './lib/supabase'
+import { BalancePage } from './pages/BalancePage'
 import { GamePage } from './pages/GamePage'
 import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/balance" element={<BalancePage />} />
               <Route path="/g/:id" element={<GamePage />} />
               <Route path="/join/:code" element={<JoinPage />} />
             </Route>

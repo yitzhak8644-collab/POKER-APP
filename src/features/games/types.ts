@@ -53,6 +53,15 @@ export interface TransactionRow {
   note: string | null
 }
 
+export interface BalanceRow {
+  player_key: string
+  display_name: string
+  avatar_url: string | null
+  games: number
+  total: number
+  last_played: string | null
+}
+
 export interface SettlementRow {
   game_id: string
   closed_by: string

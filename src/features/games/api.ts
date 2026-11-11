@@ -1,6 +1,6 @@
 import type { Role, TxType } from '../../lib/finance'
 import { getSupabase } from '../../lib/supabase'
-import type { GameBundle, GamePlayerRow, GameRow, OpenGameRow, SettlementRow, TransactionRow } from './types'
+import type { BalanceRow, GameBundle, GamePlayerRow, GameRow, OpenGameRow, SettlementRow, TransactionRow } from './types'
 
 /** Throws the original Postgrest error (its `message` is a stable key, see lib/errors.ts). */
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {
@@ -26,6 +26,11 @@ export async function fetchMyPlayerGameIds(): Promise<string[]> {
   if (!uid) return []
   const result = await sb.from('game_players').select('game_id').eq('user_id', uid)
   return unwrap<{ game_id: string }[]>(result).map((r) => r.game_id)
+}
+
+export async function fetchOverallBalance(): Promise<BalanceRow[]> {
+  const result = await getSupabase().rpc('overall_balance')
+  return unwrap<BalanceRow[]>(result)
 }
 
 export async function fetchOpenGames(): Promise<OpenGameRow[]> {
