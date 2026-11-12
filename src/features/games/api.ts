@@ -30,7 +30,13 @@ export async function fetchMyPlayerGameIds(): Promise<string[]> {
 
 export async function fetchOverallBalance(): Promise<BalanceRow[]> {
   const result = await getSupabase().rpc('overall_balance')
-  return unwrap<BalanceRow[]>(result)
+  // numeric columns can arrive as strings; make them real numbers
+  return unwrap<BalanceRow[]>(result).map((r) => ({
+    ...r,
+    opening: Number(r.opening),
+    app_total: Number(r.app_total),
+    total: Number(r.total),
+  }))
 }
 
 export async function fetchOpenGames(): Promise<OpenGameRow[]> {

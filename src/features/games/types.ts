@@ -57,7 +57,13 @@ export interface BalanceRow {
   player_key: string
   display_name: string
   avatar_url: string | null
+  /** false = a name from the old PayBox group that is not linked to a signed-up user (shown grey). */
+  registered: boolean
+  /** Net result before the app (old PayBox group). */
+  opening: number
   games: number
+  /** Net result of games closed in the app. */
+  app_total: number
   total: number
   last_played: string | null
 }
