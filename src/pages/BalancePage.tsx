@@ -18,7 +18,7 @@ function Row({ r, rank }: { r: BalanceRow; rank?: number }) {
           <bdi>{r.display_name}</bdi>
         </p>
         <p className="text-xs text-slate-500">
-          {r.games === 0 ? 'עוד לא שיחק' : `${r.games} משחקים`}
+          {r.games > 0 ? `${r.games} משחקים באפליקציה` : r.opening !== 0 ? 'עוד לא שיחק באפליקציה' : 'עוד לא שיחק'}
           {r.last_played !== null && <> · אחרון {formatGameDate(r.last_played)}</>}
         </p>
         <p className="text-xs text-slate-500">
@@ -48,7 +48,7 @@ export function BalancePage() {
       </header>
 
       <p className="text-sm text-slate-400">
-        סך הרווח/הפסד של כל שחקן: היתרה מקבוצת הפייבוקס הישנה (עד 27/10/2026) ועוד כל המשחקים שנסגרו באפליקציה, נטו אחרי דמי כניסה
+        סך הרווח/הפסד של כל שחקן: היתרה מקבוצת הפייבוקס הישנה (עד 08/11/2026) ועוד כל המשחקים שנסגרו באפליקציה, נטו אחרי דמי כניסה
         ואירוח. הטבלה מתעדכנת בסיום כל משחק וכשנרשם שחקן חדש.
       </p>
 
