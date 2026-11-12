@@ -35,7 +35,9 @@ export function BalancePage() {
   const q = useOverallBalance()
   const rows = q.data ?? []
   const registered = rows.filter((r) => r.registered)
-  const others = rows.filter((r) => !r.registered)
+  const others = rows.filter((r) => !r.registered && !r.inactive)
+  const inactive = rows.filter((r) => !r.registered && r.inactive)
+  const inactiveTotal = inactive.reduce((s, r) => s + r.total, 0)
   const sum = rows.reduce((s, r) => s + r.total, 0)
 
   return (
@@ -72,6 +74,25 @@ export function BalancePage() {
             ))}
           </ul>
         </section>
+      )}
+
+      {inactive.length > 0 && (
+        <ul className="rounded-2xl border border-slate-800 bg-slate-900/60">
+          <li className="flex items-center gap-3 p-3 opacity-60">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">שחקנים לא פעילים</p>
+              <p className="text-xs text-slate-500">
+                {inactive.map((r, i) => (
+                  <span key={r.player_key}>
+                    {i > 0 && ', '}
+                    <bdi>{r.display_name}</bdi>
+                  </span>
+                ))}
+              </p>
+            </div>
+            <Money value={inactiveTotal} signed className={`text-lg font-bold ${tone(inactiveTotal)}`} />
+          </li>
+        </ul>
       )}
 
       {rows.length > 0 && (

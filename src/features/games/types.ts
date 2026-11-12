@@ -59,6 +59,8 @@ export interface BalanceRow {
   avatar_url: string | null
   /** false = a name from the old PayBox group that is not linked to a signed-up user (shown grey). */
   registered: boolean
+  /** Old-group player marked inactive; the page shows all of them as one grey row. */
+  inactive: boolean
   /** Net result before the app (old PayBox group). */
   opening: number
   games: number
