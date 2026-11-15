@@ -1,12 +1,13 @@
 // Sends a Web Push to everyone who allowed notifications when a table opens.
-// Called only by the database trigger (public.notify_table_opened) with the shared secret in
-// `x-push-secret`, so it is deployed with verify_jwt = false and does its own authentication.
+// Called only by the database triggers (public.notify_table_opened / notify_holdem_table_opened) with the
+// shared secret in `x-push-secret`, so it is deployed with verify_jwt = false and does its own authentication.
 // The VAPID key pair is generated on first use and kept in public.push_config (unreadable by clients).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
 import { createECDH } from 'node:crypto'
 
 const SITE = 'https://poker-tracker-cyan.vercel.app'
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
@@ -51,21 +52,39 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}))
     if (body.action === 'init') return Response.json({ ok: true, initialised: true })
 
-    const gameId = String(body.game_id ?? '')
-    const { data: game } = await supabase.from('games').select('id, owner_id, status').eq('id', gameId).maybeSingle()
-    if (!game || game.status !== 'open') return Response.json({ ok: true, sent: 0, reason: 'no open game' })
+    let ownerId: string
+    let message: { title: string; body: (name: string) => string; url: string; tag: string }
+    if (body.holdem_table_id !== undefined) {
+      // An online Hold'em table (cash or tournament).
+      const tableId = String(body.holdem_table_id ?? '')
+      if (!UUID.test(tableId)) return Response.json({ ok: true, sent: 0, reason: 'bad id' })
+      const { data: table } = await supabase.from('holdem_tables').select('id, owner_id, status, pub').eq('id', tableId).maybeSingle()
+      if (!table || table.status !== 'open') return Response.json({ ok: true, sent: 0, reason: 'no open table' })
+      ownerId = table.owner_id
+      const tournament = table.pub?.tournament != null
+      message = tournament
+        ? { title: 'טורניר הולדם נפתח! 🏆', body: (n) => `${n} פתח טורניר הולדם אונליין. לחצו להרשמה.`, url: `/holdem/${tableId}`, tag: 'holdem-open' }
+        : { title: 'שולחן הולדם אונליין נפתח! ♠️', body: (n) => `${n} פתח שולחן הולדם אונליין. לחצו להצטרפות.`, url: `/holdem/${tableId}`, tag: 'holdem-open' }
+    } else {
+      const gameId = String(body.game_id ?? '')
+      const { data: game } = await supabase.from('games').select('id, owner_id, status').eq('id', gameId).maybeSingle()
+      if (!game || game.status !== 'open') return Response.json({ ok: true, sent: 0, reason: 'no open game' })
+      ownerId = game.owner_id
+      message = { title: 'יש שולחן פתוח!', body: (n) => `${n} פתח שולחן. לחצו להצטרפות.`, url: '/', tag: 'table-opened' }
+    }
 
-    const { data: owner } = await supabase.from('profiles').select('display_name').eq('id', game.owner_id).maybeSingle()
+    const { data: owner } = await supabase.from('profiles').select('display_name').eq('id', ownerId).maybeSingle()
     const { data: subs } = await supabase
       .from('push_subscriptions')
       .select('endpoint,p256dh,auth')
-      .neq('user_id', game.owner_id)
+      .neq('user_id', ownerId)
 
     webpush.setVapidDetails(SITE, vapid.pub, vapid.priv)
     const payload = JSON.stringify({
-      title: 'יש שולחן פתוח!',
-      body: `${owner?.display_name || 'מישהו'} פתח שולחן. לחצו להצטרפות.`,
-      url: '/',
+      title: message.title,
+      body: message.body(owner?.display_name || 'מישהו'),
+      url: message.url,
+      tag: message.tag,
     })
 
     let sent = 0
