@@ -217,18 +217,20 @@
   animation: hl-pulse 1.1s ease-in-out infinite;
 }
 .hl-dealer {
-  position: absolute;
-  right: -9px;
-  bottom: -3px;
-  width: 19px;
-  height: 19px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffffff, #d6d3d1);
-  color: #111827;
-  font: 700 11px/19px var(--font-num);
+  background: radial-gradient(circle at 35% 28%, #ffffff 0%, #f1efe9 55%, #cfc9bf 100%);
+  color: #0f172a;
+  font: 800 15px/28px var(--font-num);
   text-align: center;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
-  z-index: 2;
+  box-shadow:
+    0 0 0 2.5px var(--brass),
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    0 5px 8px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(226, 191, 115, 0.7);
+  z-index: 4;
+  transition: left 0.5s ease, top 0.5s ease;
 }
 .hl-backs {
   position: absolute;
@@ -236,6 +238,10 @@
   top: -4px;
   display: flex;
   z-index: 2;
+}
+.hl-backs.right {
+  left: auto;
+  right: -13px;
 }
 .hl-backs .hl-card:first-child {
   transform: rotate(-12deg);
@@ -472,6 +478,39 @@ button.hl-empty {
   display: block;
   font: 700 13px var(--font-num);
   opacity: 0.92;
+}
+.hl-pre {
+  flex: 1;
+  min-height: 46px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+  color: #cbd5e1;
+  font-weight: 700;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.hl-pre:disabled {
+  opacity: 0.35;
+}
+.hl-pre.on {
+  color: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.hl-pre.on::before {
+  content: '\2713\00a0';
+}
+.hl-pre.fold.on {
+  background: #8f1836;
+  border-color: #fb7185;
+}
+.hl-pre.check.on {
+  background: #33415c;
+  border-color: #cbd5e1;
+}
+.hl-pre.callany.on {
+  background: #0f8f63;
+  border-color: #6ee7b7;
 }
 .hl-quick {
   flex: 1;

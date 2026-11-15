@@ -10,13 +10,18 @@ interface Props {
   act: (action: Action) => Promise<boolean>
   busy: boolean
   error: string | null
+  /** Out of chips and done for the night: leave the table. */
+  onFinish: () => void
 }
+
+/** What a player chose in advance for when the turn reaches them. */
+type Pre = 'callany' | 'check' | 'fold'
 
 const round5 = (n: number): number => Math.round(n / 5) * 5
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n))
 
 /** Everything under the table: my buttons when it is my turn, otherwise what I can do right now. */
-export function ActionBar({ pub, me, cards, offset, act, busy, error }: Props) {
+export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }: Props) {
   const idx = seatIndexOf(pub, me)
   const seat = idx >= 0 ? (pub.seats[idx] ?? null) : null
   const h = pub.hand
@@ -24,9 +29,29 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error }: Props) {
   const untilNext = useRemaining(pub.phase === 'between' ? pub.nextAt : null, offset)
   const hint = cards !== null && seat?.inHand === true && h !== null ? describeCards([...cards, ...h.board]) : ''
 
+  // Chosen in advance ("Call Any" / check / fold); it belongs to one hand and is carried out when the turn comes.
+  const [pre, setPre] = useState<{ hand: number; kind: Pre } | null>(null)
+  const [autoTurn, setAutoTurn] = useState<string | null>(null)
+  const owed = seat !== null && h !== null ? Math.max(0, h.currentBet - seat.bet) : 0
+  let chosen: Pre | null = pre !== null && h !== null && pre.hand === h.no ? pre.kind : null
+  if (chosen === 'check' && owed > 0) chosen = null // somebody bet: a plain check is off the table
+  const turnKey = h !== null ? `${h.no}-${h.street}-${h.currentBet}` : ''
+  const canCheckNow = h?.options?.canCheck === true
+
   useEffect(() => {
-    if (myTurn && typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(70)
-  }, [myTurn])
+    if (!myTurn || chosen === null) return
+    // "Fold" never throws away a free check.
+    const action: Action = chosen === 'callany' ? (canCheckNow ? { type: 'check' } : { type: 'call' }) : canCheckNow ? { type: 'check' } : { type: 'fold' }
+    setPre(null)
+    setAutoTurn(turnKey)
+    void act(action).then((ok) => {
+      if (!ok) setAutoTurn(null)
+    })
+  }, [myTurn, chosen, canCheckNow, turnKey, act])
+
+  useEffect(() => {
+    if (myTurn && chosen === null && typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(70)
+  }, [myTurn, chosen])
 
   let body: ReactNode
   if (seat === null) {
@@ -54,6 +79,8 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error }: Props) {
         </div>
       </>
     )
+  } else if (myTurn && (chosen !== null || autoTurn === turnKey)) {
+    body = <Status text="מבצע את מה שבחרת מראש…" />
   } else if (myTurn && h !== null && h.options !== null) {
     body = (
       <TurnControls
@@ -73,8 +100,11 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error }: Props) {
   } else if (seat.stack === 0 && !(pub.phase === 'hand' && seat.inHand && !seat.folded)) {
     body = (
       <>
-        <Status text="נגמרו לך הצ׳יפים." />
+        <Status text="נגמרו לך הצ׳יפים. אפשר לקנות שוב או לסיים." />
         <div className="flex gap-2">
+          <button type="button" className="hl-btn call" disabled={busy} onClick={onFinish}>
+            סיימתי
+          </button>
           <button type="button" className="hl-btn brass" disabled={busy} onClick={() => void act({ type: 'rebuy' })}>
             ריביי
             <small dir="ltr">{pub.config.buyin}</small>
@@ -112,7 +142,43 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error }: Props) {
     const actor = h !== null && h.toAct !== null ? pub.seats[h.toAct] : null
     const waitingFor = actor ? `התור של ${actor.name}` : ''
     const mine = seat.sitOutNext ? '' : seat.folded ? 'עשית פולד' : seat.allIn ? 'אתה באול-אין' : hint
-    body = <Status text={[waitingFor, mine].filter(Boolean).join(' · ')} />
+    const status = <Status text={[waitingFor, mine].filter(Boolean).join(' · ')} />
+    const canPre = h !== null && seat.inHand && !seat.folded && !seat.allIn
+    const toggle = (kind: Pre): void => {
+      if (h === null) return
+      setPre(chosen === kind ? null : { hand: h.no, kind })
+    }
+    body = canPre ? (
+      <>
+        {status}
+        <p className="text-center text-xs text-slate-500">בחירה מראש לתור שלך</p>
+        <div className="flex gap-2">
+          <button type="button" className={`hl-pre fold ${chosen === 'fold' ? 'on' : ''}`} aria-pressed={chosen === 'fold'} onClick={() => toggle('fold')}>
+            פולד
+          </button>
+          <button
+            type="button"
+            className={`hl-pre check ${chosen === 'check' ? 'on' : ''}`}
+            aria-pressed={chosen === 'check'}
+            disabled={owed > 0}
+            onClick={() => toggle('check')}
+          >
+            צ׳ק
+          </button>
+          <button
+            type="button"
+            className={`hl-pre callany ${chosen === 'callany' ? 'on' : ''}`}
+            aria-pressed={chosen === 'callany'}
+            lang="en"
+            onClick={() => toggle('callany')}
+          >
+            Call Any
+          </button>
+        </div>
+      </>
+    ) : (
+      status
+    )
   }
 
   return (

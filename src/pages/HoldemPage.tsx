@@ -119,7 +119,7 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
         <TableView pub={pub} me={me} cards={cards} offset={backend.offset()} onSit={seat === null ? (i) => void act({ type: 'sit', seat: i }) : undefined} />
       </div>
 
-      <ActionBar pub={pub} me={me} cards={cards} offset={backend.offset()} act={act} busy={busy} error={error} />
+      <ActionBar pub={pub} me={me} cards={cards} offset={backend.offset()} act={act} busy={busy} error={error} onFinish={() => void goHome('leave')} />
 
       <Dialog open={menu} onClose={() => setMenu(false)} title="שולחן הולדם">
         <div className="space-y-3" dir="rtl">

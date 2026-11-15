@@ -29,6 +29,20 @@ const BET_POS: readonly [number, number][] = [
   [67, 67],
 ]
 
+/** Where the dealer button lies, next to each seat. */
+const DEALER_POS: readonly [number, number][] = [
+  [67, 82],
+  [30, 73],
+  [22, 50.5],
+  [22, 30],
+  [30.5, 17.5],
+  [63.5, 11],
+  [69.5, 17.5],
+  [78, 30],
+  [78, 50.5],
+  [70, 73],
+]
+
 const LAST: Record<string, string> = {
   fold: 'פולד',
   check: 'צ׳ק',
@@ -137,6 +151,13 @@ export function TableView({ pub, me, cards, offset, onSit }: Props) {
         ) : null,
       )}
 
+      {/* the dealer button slides to the next seat every hand */}
+      {h !== null && pub.phase !== 'waiting' && pub.seats[h.button] != null && (
+        <div className="hl-pos hl-dealer" style={at(DEALER_POS, slotOf(h.button))} role="img" aria-label="דילר">
+          D
+        </div>
+      )}
+
       {/* seats */}
       {pub.seats.map((s, i) => {
         const slot = slotOf(i)
@@ -167,6 +188,7 @@ export function TableView({ pub, me, cards, offset, onSit }: Props) {
             isMe={i === mySeat}
             offset={offset}
             style={at(SEAT_POS, slot)}
+            rightSide={slot >= 6}
             marks={marks}
           />
         )
@@ -192,10 +214,12 @@ interface SeatProps {
   isMe: boolean
   offset: number
   style: CSSProperties
+  /** Seats on the right keep their face-down cards on the outer side, clear of the dealer button. */
+  rightSide: boolean
   marks: (c: Card, owner: number | null) => { dim: boolean; lift: boolean }
 }
 
-function SeatView({ pub, seat, index, isMe, offset, style, marks }: SeatProps) {
+function SeatView({ pub, seat, index, isMe, offset, style, rightSide, marks }: SeatProps) {
   const h = pub.hand
   const result = h?.result ?? null
   const isTurn = pub.phase === 'hand' && h !== null && h.toAct === index
@@ -215,7 +239,7 @@ function SeatView({ pub, seat, index, isMe, offset, style, marks }: SeatProps) {
   // At a showdown the hand name takes the place of the player's name on the plate, so no tag is needed.
   const showLabel = label !== undefined && !seat.folded
   if (showLabel) tag = null
-  else if (won > 0) tag = { text: `+${won}`, cls: 't-win' }
+  else if (won > 0) tag = { text: `‎+${won}`, cls: 't-win' } // LRM keeps the plus sign in front inside Hebrew text
   else if (seat.leaving) tag = { text: 'עזב', cls: 't-out' }
   else if (seat.sittingOut) tag = { text: 'יושב בחוץ', cls: 't-out' }
   else if (busted) tag = { text: 'בלי צ׳יפים', cls: 't-out' }
@@ -224,16 +248,14 @@ function SeatView({ pub, seat, index, isMe, offset, style, marks }: SeatProps) {
   else if (seat.last !== null && LAST[seat.last] !== undefined) tag = { text: LAST[seat.last] as string, cls: '' }
 
   const hash = [...seat.name].reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7)
-  const isDealer = h !== null && h.button === index && pub.phase !== 'waiting'
 
   return (
     <div className={cls.join(' ')} style={style}>
       <div className="hl-avatar" style={seat.avatar ? undefined : { background: AVATAR_BG[hash % AVATAR_BG.length] }}>
         {seat.avatar ? <img src={seat.avatar} alt="" referrerPolicy="no-referrer" /> : <span>{[...seat.name.trim()][0] ?? '?'}</span>}
         {isTurn && <TurnRing fraction={fraction} />}
-        {isDealer && <span className="hl-dealer">D</span>}
         {!isMe && seat.cards === null && seat.hasCards && (
-          <span className="hl-backs">
+          <span className={`hl-backs ${rightSide ? 'right' : ''}`}>
             <CardBack width={17} />
             <CardBack width={17} />
           </span>
@@ -245,7 +267,7 @@ function SeatView({ pub, seat, index, isMe, offset, style, marks }: SeatProps) {
             ))}
           </span>
         )}
-        {won > 0 && seat.cards === null && <span className="hl-float">+{won}</span>}
+        {won > 0 && seat.cards === null && !isMe && <span className="hl-float">+{won}</span>}
       </div>
       <div className="hl-plate" dir="rtl">
         {showLabel ? (
