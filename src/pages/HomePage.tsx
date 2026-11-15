@@ -50,9 +50,14 @@ export function HomePage() {
         </button>
       </header>
 
-      <Link to="/balance" className={`${btnSecondary} block w-full text-center`}>
-        {isAdmin ? '📊 טבלת איזון כוללת' : '📊 המאזן שלי'}
-      </Link>
+      <div className="grid grid-cols-2 gap-2">
+        <Link to="/balance" className={`${btnSecondary} block text-center`}>
+          {isAdmin ? '📊 טבלת איזון' : '📊 המאזן שלי'}
+        </Link>
+        <Link to="/stats" className={`${btnSecondary} block text-center`}>
+          📈 הסטטיסטיקה שלי
+        </Link>
+      </div>
 
       <PayBoxLink />
 

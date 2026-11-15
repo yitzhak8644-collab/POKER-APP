@@ -4,11 +4,13 @@ import {
   cardsOf,
   createState,
   DEFAULT_CONFIG,
+  handSummary,
   publicView,
   seatIndexOf,
   type Action,
   type Card,
   type Ctx,
+  type HandSummary,
   type PublicState,
   type State,
 } from '../../lib/holdem/engine'
@@ -30,8 +32,17 @@ export interface HoldemBackend {
   subscribe(listener: (snap: TableSnapshot) => void): () => void
   /** Rejects with an Error whose message is a stable key (see lib/errors.ts). */
   send(action: Action): Promise<void>
+  /** The last finished hands of this table, newest first. */
+  history(): Promise<HandSummary[]>
+  /** Sends an emoji reaction to everybody at the table (not stored anywhere). */
+  react(emoji: string): void
+  onReact(listener: (userId: string, emoji: string) => void): () => void
   dispose(): void
 }
+
+/** The reactions players can send. */
+export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '🤑', '🙈', '👍'] as const
+const isReaction = (e: unknown): e is string => typeof e === 'string' && (REACTIONS as readonly string[]).includes(e)
 
 interface FnResult {
   error?: string
@@ -99,6 +110,8 @@ export class RemoteBackend implements HoldemBackend {
   private disposed = false
   private poll: ReturnType<typeof setInterval> | null = null
   private channel: RealtimeChannel | null = null
+  private reactListeners = new Set<(userId: string, emoji: string) => void>()
+  private lastReact = 0
 
   constructor(tableId: string, me: string, onMissing: () => void) {
     this.tableId = tableId
@@ -123,6 +136,37 @@ export class RemoteBackend implements HoldemBackend {
     const res = await callHoldem({ op: 'act', tableId: this.tableId, action })
     if (res.error) throw new Error(res.error)
     if (res.pub) this.accept(res.pub, res.cards)
+  }
+
+  react(emoji: string): void {
+    if (!isReaction(emoji) || Date.now() - this.lastReact < 1500) return
+    const seated = this.snap !== null && seatIndexOf(this.snap.pub, this.me) >= 0
+    if (!seated || !this.channel) return
+    this.lastReact = Date.now()
+    this.emitReact(this.me, emoji)
+    void this.channel.send({ type: 'broadcast', event: 'react', payload: { userId: this.me, emoji } })
+  }
+
+  onReact(listener: (userId: string, emoji: string) => void): () => void {
+    this.reactListeners.add(listener)
+    return () => {
+      this.reactListeners.delete(listener)
+    }
+  }
+
+  private emitReact(userId: string, emoji: string): void {
+    for (const l of this.reactListeners) l(userId, emoji)
+  }
+
+  async history(): Promise<HandSummary[]> {
+    const { data, error } = await getSupabase()
+      .from('holdem_hands')
+      .select('summary')
+      .eq('table_id', this.tableId)
+      .order('hand_no', { ascending: false })
+      .limit(20)
+    if (error) throw error
+    return ((data ?? []) as { summary: HandSummary }[]).map((r) => r.summary)
   }
 
   dispose(): void {
@@ -151,6 +195,10 @@ export class RemoteBackend implements HoldemBackend {
           if (pub) this.accept(pub)
         },
       )
+      .on('broadcast', { event: 'react' }, ({ payload }) => {
+        const p = payload as { userId?: unknown; emoji?: unknown }
+        if (typeof p.userId === 'string' && isReaction(p.emoji)) this.emitReact(p.userId, p.emoji)
+      })
       .subscribe()
     // Realtime can drop on a phone; a light poll keeps the table honest.
     this.poll = setInterval(this.onVisible, 4000)
@@ -250,6 +298,9 @@ export class LocalBackend implements HoldemBackend {
   private listeners = new Set<(snap: TableSnapshot) => void>()
   private timer: ReturnType<typeof setTimeout> | null = null
   private disposed = false
+  private hands: HandSummary[] = []
+  private reactListeners = new Set<(userId: string, emoji: string) => void>()
+  private lastReact = 0
 
   constructor(name: string, avatar: string | null, turnSeconds?: number) {
     let st = createState('me', turnSeconds ? { ...DEFAULT_CONFIG, turnMs: turnSeconds * 1000 } : DEFAULT_CONFIG)
@@ -282,6 +333,23 @@ export class LocalBackend implements HoldemBackend {
     }
   }
 
+  history(): Promise<HandSummary[]> {
+    return Promise.resolve(this.hands.slice(0, 20))
+  }
+
+  react(emoji: string): void {
+    if (!isReaction(emoji) || Date.now() - this.lastReact < 1500) return
+    this.lastReact = Date.now()
+    for (const l of this.reactListeners) l('me', emoji)
+  }
+
+  onReact(listener: (userId: string, emoji: string) => void): () => void {
+    this.reactListeners.add(listener)
+    return () => {
+      this.reactListeners.delete(listener)
+    }
+  }
+
   dispose(): void {
     this.disposed = true
     this.listeners.clear()
@@ -299,7 +367,25 @@ export class LocalBackend implements HoldemBackend {
   private apply(userId: string, action: Action): void {
     const next = applyAction(this.state, userId, action, this.ctx())
     if (next === this.state) return
+    const ended = next.hand?.result != null && !(this.state.hand?.no === next.hand.no && this.state.hand?.result != null)
     this.state = next
+    if (ended) {
+      const sum = handSummary(next)
+      if (sum) {
+        this.hands.unshift(sum)
+        // now and then a bot reacts to the result
+        if (Math.random() < 0.35) {
+          const bots = sum.players.filter((p) => p.userId !== 'me')
+          const bot = bots[Math.floor(Math.random() * bots.length)]
+          if (bot) {
+            const emoji = bot.won ? (Math.random() < 0.5 ? '🤑' : '🔥') : Math.random() < 0.5 ? '😡' : '🙈'
+            setTimeout(() => {
+              if (!this.disposed) for (const l of this.reactListeners) l(bot.userId, emoji)
+            }, 600)
+          }
+        }
+      }
+    }
     this.v += 1
     const snap = this.snapshot()
     for (const l of this.listeners) l(snap)

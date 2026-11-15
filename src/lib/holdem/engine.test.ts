@@ -9,6 +9,7 @@ import {
   describeCards,
   evaluate,
   freshDeck,
+  handSummary,
   HoldemError,
   holeByUser,
   isSevenDeuce,
@@ -522,6 +523,20 @@ describe('house rule: winning with 7-2', () => {
     }
     expect(hand(st).result?.won).toEqual({ '1': 10 })
     expect(hand(st).result?.bonus).toBeUndefined()
+  })
+
+  it('summarises a finished hand with nets that add up to zero and no hidden cards', () => {
+    let st = startedWithOut(3, [2], 'As Ah 7c 2d', [250, 250, 25])
+    expect(handSummary(st)).toBeNull()
+    st = act(st, 0, { type: 'raise', to: 20 })
+    st = act(st, 1, { type: 'fold' })
+    const sum = handSummary(st)
+    expect(sum).toMatchObject({ handNo: 1, pot: 10, showdown: false, bonus: 65 })
+    const by = Object.fromEntries((sum?.players ?? []).map((p) => [p.userId, p]))
+    expect(by.u0).toMatchObject({ net: 5 + 65, won: true, sevenDeuce: true, cards: cards('7c 2d') })
+    expect(by.u1).toMatchObject({ net: -5 - 40, won: false, cards: null })
+    expect(by.u2).toMatchObject({ net: -25, won: false, cards: null })
+    expect((sum?.players ?? []).reduce((a, p) => a + p.net, 0)).toBe(0)
   })
 
   it('allows a rebuy below 40 chips between hands, not at 40', () => {

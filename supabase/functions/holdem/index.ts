@@ -8,6 +8,7 @@ import {
   applyAction,
   cardsOf,
   createState,
+  handSummary,
   HoldemError,
   holeByUser,
   publicView,
@@ -126,6 +127,8 @@ async function act(uid: string, tableId: string, action: Action): Promise<unknow
 
     const pub = publicView(next, row.version + 1)
     const newHand = next.hand !== null && next.hand.no !== (state.hand?.no ?? 0)
+    // A hand that just ended goes into the history (same transaction as the state).
+    const ended = next.hand?.result != null && !(state.hand?.no === next.hand.no && state.hand?.result != null)
     const commit = await db.rpc('holdem_commit', {
       p_table_id: tableId,
       p_expected: row.version,
@@ -134,6 +137,7 @@ async function act(uid: string, tableId: string, action: Action): Promise<unknow
       p_closed: next.closed,
       p_hand_no: next.hand?.no ?? 0,
       p_hole: newHand ? holeByUser(next) : null,
+      p_hand: ended ? handSummary(next) : null,
     })
     if (commit.error) throw commit.error
     if (commit.data === true) return { pub, cards: cardsOf(next, uid) }

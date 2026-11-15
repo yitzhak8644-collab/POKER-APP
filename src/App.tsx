@@ -10,6 +10,7 @@ import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { SetupNotice } from './pages/SetupNotice'
+import { StatsPage } from './pages/StatsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5_000, retry: 1, refetchOnWindowFocus: false } },
@@ -28,6 +29,7 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/balance" element={<BalancePage />} />
+              <Route path="/stats" element={<StatsPage />} />
               <Route path="/g/:id" element={<GamePage />} />
               <Route path="/holdem/practice" element={<HoldemPage practice />} />
               <Route path="/holdem/:id" element={<HoldemPage />} />

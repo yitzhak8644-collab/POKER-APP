@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Dialog } from '../components/Dialog'
 import { btnDanger, btnPrimary, btnSecondary } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
 import { useIsAdmin } from '../features/games/hooks'
 import { ActionBar } from '../features/holdem/ActionBar'
-import { LocalBackend, RemoteBackend, type HoldemBackend } from '../features/holdem/backend'
+import { LocalBackend, REACTIONS, RemoteBackend, type HoldemBackend } from '../features/holdem/backend'
+import { HandHistory } from '../features/holdem/HandHistory'
 import { useSoundSetting, useTableSounds } from '../features/holdem/sounds'
 import { TableView } from '../features/holdem/TableView'
 import { useHoldem } from '../features/holdem/useHoldem'
@@ -28,6 +29,10 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
   const [menu, setMenu] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [picker, setPicker] = useState(false)
+  const [reactions, setReactions] = useState<Record<string, { emoji: string; key: number }>>({})
+  const reactKey = useRef(0)
   const [soundOn, setSoundOn] = useSoundSetting()
 
   useEffect(() => {
@@ -42,6 +47,29 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
       setBackend(null)
     }
   }, [practice, id, uid, name, avatar])
+
+  useEffect(() => {
+    if (!backend) return
+    const timers = new Set<ReturnType<typeof setTimeout>>()
+    const off = backend.onReact((userId, emoji) => {
+      const key = ++reactKey.current
+      setReactions((r) => ({ ...r, [userId]: { emoji, key } }))
+      const t = setTimeout(() => {
+        timers.delete(t)
+        setReactions((r) => {
+          if (r[userId]?.key !== key) return r
+          const next = { ...r }
+          delete next[userId]
+          return next
+        })
+      }, 2300)
+      timers.add(t)
+    })
+    return () => {
+      off()
+      for (const t of timers) clearTimeout(t)
+    }
+  }, [backend])
 
   const { snap, act, busy, error } = useHoldem(backend)
   useTableSounds(snap, backend?.me ?? '')
@@ -141,8 +169,38 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1">
-        <TableView pub={pub} me={me} cards={cards} offset={backend.offset()} onSit={seat === null ? (i) => void act({ type: 'sit', seat: i }) : undefined} />
+      <div className="relative min-h-0 flex-1">
+        <TableView
+          pub={pub}
+          me={me}
+          cards={cards}
+          offset={backend.offset()}
+          reactions={reactions}
+          onSit={seat === null ? (i) => void act({ type: 'sit', seat: i }) : undefined}
+        />
+        {seat && (
+          <>
+            <button type="button" className="hl-emoji-btn" onClick={() => setPicker((p) => !p)} aria-label="תגובה" aria-expanded={picker}>
+              😀
+            </button>
+            {picker && (
+              <div className="hl-emoji-row">
+                {REACTIONS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => {
+                      backend.react(e)
+                      setPicker(false)
+                    }}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <ActionBar pub={pub} me={me} cards={cards} offset={backend.offset()} act={act} busy={busy} error={error} onFinish={() => void goHome('leave')} />
@@ -158,6 +216,16 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
           </p>
           <button type="button" className={`${btnSecondary} w-full text-rose-200`} disabled={busy} onClick={exit}>
             {practice ? 'יציאה מהאימון' : seat ? 'יציאה מהשולחן (הצ׳יפים נשמרים)' : 'יציאה לדף הבית'}
+          </button>
+          <button
+            type="button"
+            className={`${btnSecondary} w-full`}
+            onClick={() => {
+              setMenu(false)
+              setHistoryOpen(true)
+            }}
+          >
+            היסטוריית ידיים
           </button>
           <button type="button" className={`${btnSecondary} w-full`} onClick={() => setSoundOn(!soundOn)}>
             צלילים: {soundOn ? 'פועלים 🔊' : 'כבויים 🔇'}
@@ -200,6 +268,15 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
               </button>
             ))}
           <button type="button" className={`${btnPrimary} w-full`} onClick={() => setMenu(false)}>
+            חזרה למשחק
+          </button>
+        </div>
+      </Dialog>
+
+      <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} title="היסטוריית ידיים">
+        <div className="space-y-3" dir="rtl">
+          {historyOpen && <HandHistory backend={backend} me={me} refreshKey={pub.handNo} />}
+          <button type="button" className={`${btnPrimary} w-full`} onClick={() => setHistoryOpen(false)}>
             חזרה למשחק
           </button>
         </div>

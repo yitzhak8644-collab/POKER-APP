@@ -69,9 +69,11 @@ interface Props {
   offset: number
   /** Present when the viewer may take an empty seat. */
   onSit?: (seat: number) => void
+  /** userId -> the emoji they just sent (shown for a moment above their seat). */
+  reactions?: Record<string, { emoji: string; key: number }>
 }
 
-export function TableView({ pub, me, cards, offset, onSit }: Props) {
+export function TableView({ pub, me, cards, offset, onSit, reactions }: Props) {
   const n = pub.seats.length
   const mySeat = seatIndexOf(pub, me)
   const rot = mySeat >= 0 ? mySeat : 0
@@ -192,6 +194,7 @@ export function TableView({ pub, me, cards, offset, onSit }: Props) {
             isMe={i === mySeat}
             offset={offset}
             style={at(SEAT_POS, slot)}
+            reaction={reactions?.[s.userId]}
             rightSide={slot >= 6}
             marks={marks}
           />
@@ -220,10 +223,11 @@ interface SeatProps {
   style: CSSProperties
   /** Seats on the right keep their face-down cards on the outer side, clear of the dealer button. */
   rightSide: boolean
+  reaction?: { emoji: string; key: number }
   marks: (c: Card, owner: number | null) => { dim: boolean; lift: boolean }
 }
 
-function SeatView({ pub, seat, index, isMe, offset, style, rightSide, marks }: SeatProps) {
+function SeatView({ pub, seat, index, isMe, offset, style, rightSide, reaction, marks }: SeatProps) {
   const h = pub.hand
   const result = h?.result ?? null
   const isTurn = pub.phase === 'hand' && h !== null && h.toAct === index
@@ -276,6 +280,11 @@ function SeatView({ pub, seat, index, isMe, offset, style, rightSide, marks }: S
           </span>
         )}
         {won > 0 && seat.cards === null && !isMe && <span className="hl-float">+{won}</span>}
+        {reaction && (
+          <span key={reaction.key} className="hl-react" role="img" aria-label="תגובה">
+            {reaction.emoji}
+          </span>
+        )}
       </div>
       <div className="hl-plate" dir="rtl">
         {showLabel ? (

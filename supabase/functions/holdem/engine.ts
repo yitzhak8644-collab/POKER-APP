@@ -235,6 +235,8 @@ export interface HandResult {
   best: Record<string, Card[]>
   /** 7-2 house-rule payments: the winner and what every other seated player paid. */
   bonus?: SevenDeuce[]
+  /** Seat index -> chips won or lost in this hand (pot and 7-2 bonus together). */
+  net?: Record<string, number>
 }
 
 export interface SevenDeuce {
@@ -645,6 +647,11 @@ function finish(st: State, ctx: Ctx, showdown: boolean): void {
       result.pots.push({ amount: pot.amount, winners })
     }
   }
+  const net: Record<string, number> = {}
+  st.seats.forEach((s, i) => {
+    if (s !== null && s.inHand) net[String(i)] = (result.won[String(i)] ?? 0) - s.committed
+  })
+  result.net = net
   for (const s of st.seats) {
     if (s === null) continue
     if (s.inHand) {
@@ -679,8 +686,10 @@ function finish(st: State, ctx: Ctx, showdown: boolean): void {
         s.stack -= pay
         entry.from[String(i)] = pay
         entry.total += pay
+        net[String(i)] = (net[String(i)] ?? 0) - pay
       })
       winner.stack += entry.total
+      net[String(w)] = (net[String(w)] ?? 0) + entry.total
       winner.shown = true
       ;(result.bonus ??= []).push(entry)
     }
@@ -1033,6 +1042,60 @@ export function holeByUser(st: State): Record<string, Card[]> {
     if (s !== null) out[s.userId] = cards
   }
   return out
+}
+
+export interface HandSummaryPlayer {
+  userId: string
+  name: string
+  /** Chips won (+) or lost (-) in the hand, 7-2 bonus included. */
+  net: number
+  won: boolean
+  /** Hand name at a showdown. */
+  label: string | null
+  /** Face-up cards only (showdown, Show or 7-2); never cards nobody saw. */
+  cards: Card[] | null
+  sevenDeuce: boolean
+}
+
+export interface HandSummary {
+  handNo: number
+  board: Card[]
+  pot: number
+  showdown: boolean
+  /** 7-2 bonus collected in this hand (0 when none). */
+  bonus: number
+  players: HandSummaryPlayer[]
+}
+
+/** The finished hand as it goes into the history: public information only. Null while no hand has ended. */
+export function handSummary(st: State): HandSummary | null {
+  const h = st.hand
+  const r = h?.result
+  if (!h || !r) return null
+  const players: HandSummaryPlayer[] = []
+  const bonusBySeat = new Map((r.bonus ?? []).map((b) => [b.seat, b.total]))
+  st.seats.forEach((s, i) => {
+    const key = String(i)
+    const net = r.net?.[key]
+    if (s === null || net === undefined) return
+    players.push({
+      userId: s.userId,
+      name: s.name,
+      net,
+      won: (r.won[key] ?? 0) > 0,
+      label: r.labels[key] ?? null,
+      cards: s.shown ? [...(h.hole[key] ?? [])] : null,
+      sevenDeuce: bonusBySeat.has(i),
+    })
+  })
+  return {
+    handNo: h.no,
+    board: [...h.board],
+    pot: r.total,
+    showdown: r.showdown,
+    bonus: (r.bonus ?? []).reduce((sum, b) => sum + b.total, 0),
+    players,
+  }
 }
 
 /** Chips of a pile, biggest first: 340 -> [100, 100, 100, 25, 10, 5]. */
