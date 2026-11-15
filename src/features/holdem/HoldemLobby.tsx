@@ -23,6 +23,14 @@ export function HoldemLobby({ isAdmin }: { isAdmin: boolean }) {
   if (table === null && !mayOpen) return null
 
   const players = table ? table.pub.seats.filter((s) => s !== null) : []
+  const t = table?.pub.tournament ?? null
+  const openTable = (kind: 'cash' | 'tournament') => async () => {
+    const r = await create.run(() => createHoldemTable(kind))
+    if (r.ok) {
+      void queryClient.invalidateQueries({ queryKey: OPEN_KEY })
+      navigate(`/holdem/${r.value}`)
+    }
+  }
 
   return (
     <section className="space-y-3 rounded-2xl border border-emerald-900/60 bg-gradient-to-b from-emerald-950/50 to-slate-900 p-4">
@@ -36,7 +44,7 @@ export function HoldemLobby({ isAdmin }: { isAdmin: boolean }) {
       {table ? (
         <>
           <p className="text-sm text-slate-300">
-            יש שולחן פתוח ·{' '}
+            {t ? (t.status === 'registering' ? '🏆 טורניר פתוח להרשמה' : '🏆 טורניר באמצע') : 'יש שולחן פתוח'} ·{' '}
             <bdi dir="ltr" className="font-num">
               {players.length}/{table.pub.seats.length}
             </bdi>{' '}
@@ -48,26 +56,21 @@ export function HoldemLobby({ isAdmin }: { isAdmin: boolean }) {
             )}
           </p>
           <Link to={`/holdem/${table.id}`} className={`${btnPrimary} block w-full text-center`}>
-            כניסה לשולחן האונליין
+            {t ? (t.status === 'registering' ? 'להרשמה לטורניר' : 'לצפייה בטורניר') : 'כניסה לשולחן האונליין'}
           </Link>
         </>
       ) : (
         <>
           <p className="text-sm text-slate-400">כל אחד משחק מהטלפון שלו. כניסה 250 צ׳יפים, בליינדים 5/5, בלי כסף. חוק 7-2: 40 מכל אחד.</p>
-          <button
-            type="button"
-            className={`${btnPrimary} w-full`}
-            disabled={create.busy}
-            onClick={async () => {
-              const r = await create.run(createHoldemTable)
-              if (r.ok) {
-                void queryClient.invalidateQueries({ queryKey: OPEN_KEY })
-                navigate(`/holdem/${r.value}`)
-              }
-            }}
-          >
-            {create.busy ? 'פותח…' : 'פתיחת שולחן אונליין'}
-          </button>
+          <div className="flex gap-2">
+            <button type="button" className={`${btnPrimary} flex-1`} disabled={create.busy} onClick={openTable('cash')}>
+              {create.busy ? 'פותח…' : 'שולחן רגיל'}
+            </button>
+            <button type="button" className={`${btnSecondary} flex-1 text-amber-200`} disabled={create.busy} onClick={openTable('tournament')}>
+              🏆 טורניר
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">טורניר: 250 צ׳יפים, בליינדים מ-5/5 שעולים כל 10 דקות, ריביי ב-30 הדקות הראשונות, עד שנשאר זוכה.</p>
         </>
       )}
 
@@ -77,9 +80,15 @@ export function HoldemLobby({ isAdmin }: { isAdmin: boolean }) {
         </p>
       )}
 
-      <Link to="/holdem/practice" className={`${btnSecondary} block w-full text-center`}>
-        אימון מול בוטים (רק אצלך במכשיר)
-      </Link>
+      <div className="flex gap-2">
+        <Link to="/holdem/practice" className={`${btnSecondary} flex-1 text-center`}>
+          אימון מול בוטים
+        </Link>
+        <Link to="/holdem/practice?t=1" className={`${btnSecondary} flex-1 text-center`}>
+          טורניר אימון
+        </Link>
+      </div>
+      <p className="text-center text-xs text-slate-500">האימון רץ רק אצלך במכשיר.</p>
     </section>
   )
 }

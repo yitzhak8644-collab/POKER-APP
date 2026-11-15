@@ -7,6 +7,7 @@ import {
   handSummary,
   publicView,
   seatIndexOf,
+  tournamentClock,
   type Action,
   type Card,
   type Ctx,
@@ -88,8 +89,8 @@ export async function fetchHoldemOpenToAll(): Promise<boolean> {
 }
 
 /** Opens a table (and sits the opener). If one is already open, returns that one. */
-export async function createHoldemTable(): Promise<string> {
-  const res = await callHoldem({ op: 'create' })
+export async function createHoldemTable(kind: 'cash' | 'tournament' = 'cash'): Promise<string> {
+  const res = await callHoldem({ op: 'create', kind })
   if (res.tableId) return res.tableId
   throw new Error(res.error ?? 'SERVER_ERROR')
 }
@@ -302,8 +303,10 @@ export class LocalBackend implements HoldemBackend {
   private reactListeners = new Set<(userId: string, emoji: string) => void>()
   private lastReact = 0
 
-  constructor(name: string, avatar: string | null, turnSeconds?: number) {
-    let st = createState('me', turnSeconds ? { ...DEFAULT_CONFIG, turnMs: turnSeconds * 1000 } : DEFAULT_CONFIG)
+  constructor(name: string, avatar: string | null, turnSeconds?: number, tournament = false) {
+    const config = turnSeconds ? { ...DEFAULT_CONFIG, turnMs: turnSeconds * 1000 } : DEFAULT_CONFIG
+    // A practice tournament runs on short levels so the blinds rise while you watch.
+    let st = createState('me', config, tournament ? { tournament: { levelMs: 90_000, rebuyDecideMs: 30_000 } } : {})
     st = applyAction(st, 'me', { type: 'sit', seat: 0 }, { ...this.ctx(), profile: { name, avatar } })
     BOTS.forEach((b, i) => {
       st = applyAction(st, `bot${i}`, { type: 'sit', seat: b.seat }, { ...this.ctx(), profile: { name: b.name, avatar: null }, bot: true })
@@ -415,7 +418,12 @@ export class LocalBackend implements HoldemBackend {
       this.state.seats.forEach((seat, i) => {
         if (!seat?.bot) return
         try {
-          if (seat.stack < (this.state.config.rebuyBelow ?? 1)) this.apply(seat.userId, { type: 'rebuy' })
+          const tour = this.state.tournament
+          if (tour && tour.status === 'running' && seat.stack === 0) {
+            // A bot out of chips in a tournament: sometimes it buys back in, otherwise it is done.
+            const canRebuy = tournamentClock(tour, Date.now()).rebuyOpen
+            this.apply(seat.userId, canRebuy && Math.random() < 0.6 ? { type: 'rebuy' } : { type: 'bust' })
+          } else if (!tour && seat.stack < (this.state.config.rebuyBelow ?? 1)) this.apply(seat.userId, { type: 'rebuy' })
           else if (this.state.phase === 'between' && this.state.hand?.result && this.state.hand.hole[String(i)] && !seat.shown && Math.random() < 0.2) {
             this.apply(seat.userId, { type: 'show' })
           }

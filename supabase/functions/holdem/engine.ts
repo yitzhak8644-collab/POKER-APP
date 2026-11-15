@@ -190,6 +190,171 @@ export const DEFAULT_CONFIG: Config = {
   rebuyBelow: 40,
 }
 
+// ---------------------------------------------------------------------------------------------- tournament
+
+export interface BlindLevel {
+  sb: number
+  bb: number
+}
+
+export interface TournamentConfig {
+  levels: BlindLevel[]
+  /** Length of a blind level. */
+  levelMs: number
+  /** Rebuys are allowed during the first N levels (only with no chips left). */
+  rebuyLevels: number
+  /** New players may still sit down during the first N levels. */
+  lateRegLevels: number
+  /** A player who ran out of chips while rebuys are open has this long to rebuy; then they are out. */
+  rebuyDecideMs: number
+}
+
+export const DEFAULT_TOURNAMENT: TournamentConfig = {
+  levels: [
+    { sb: 5, bb: 5 },
+    { sb: 5, bb: 10 },
+    { sb: 10, bb: 20 },
+    { sb: 15, bb: 30 },
+    { sb: 25, bb: 50 },
+    { sb: 50, bb: 100 },
+    { sb: 75, bb: 150 },
+    { sb: 100, bb: 200 },
+    { sb: 150, bb: 300 },
+    { sb: 200, bb: 400 },
+    { sb: 300, bb: 600 },
+  ],
+  levelMs: 10 * 60_000,
+  rebuyLevels: 3,
+  lateRegLevels: 1,
+  rebuyDecideMs: 60_000,
+}
+
+export interface TournamentPlace {
+  userId: string
+  name: string
+  avatar: string | null
+  place: number
+  /** Buy-in + rebuys. */
+  entries: number
+}
+
+export type TournamentStatus = 'registering' | 'running' | 'finished' | 'cancelled'
+
+export interface Tournament extends TournamentConfig {
+  status: TournamentStatus
+  startedAt: number | null
+  /** userId -> buy-in + rebuys. */
+  entries: Record<string, number>
+  /** Out of chips while rebuys are open: when, and the stack they started that hand with (orders places). */
+  busted: Record<string, { at: number; start: number }>
+  /** Knocked out, in the order it happened (worst place first). */
+  out: TournamentPlace[]
+  winner: TournamentPlace | null
+}
+
+export interface TournamentClock {
+  /** 0-based level in play by the clock. */
+  index: number
+  level: BlindLevel
+  next: BlindLevel
+  /** When the next level starts (null before the start). */
+  nextAt: number | null
+  rebuyOpen: boolean
+  rebuyEndsAt: number | null
+  lateRegOpen: boolean
+  lateRegEndsAt: number | null
+}
+
+type TournamentTimes = Pick<Tournament, 'levels' | 'levelMs' | 'rebuyLevels' | 'lateRegLevels' | 'status' | 'startedAt'>
+
+/** Level `i`; past the end of the list the last level keeps doubling. */
+export function levelNo(t: Pick<Tournament, 'levels'>, i: number): BlindLevel {
+  const list = t.levels
+  if (i < list.length) return list[Math.max(0, i)] as BlindLevel
+  const last = list[list.length - 1] as BlindLevel
+  const f = 2 ** (i - list.length + 1)
+  return { sb: last.sb * f, bb: last.bb * f }
+}
+
+function levelIndex(t: TournamentTimes, now: number): number {
+  if (t.startedAt === null) return 0
+  return Math.max(0, Math.floor((now - t.startedAt) / t.levelMs))
+}
+
+const levelAt = (t: TournamentTimes, now: number): BlindLevel => levelNo(t, levelIndex(t, now))
+const rebuyEndsAt = (t: TournamentTimes): number => (t.startedAt ?? 0) + t.rebuyLevels * t.levelMs
+
+export function tournamentClock(t: TournamentTimes, now: number): TournamentClock {
+  const index = levelIndex(t, now)
+  const started = t.startedAt !== null
+  const running = t.status === 'running'
+  const lateEnd = started ? (t.startedAt as number) + t.lateRegLevels * t.levelMs : null
+  return {
+    index,
+    level: levelNo(t, index),
+    next: levelNo(t, index + 1),
+    nextAt: started ? (t.startedAt as number) + (index + 1) * t.levelMs : null,
+    rebuyOpen: running && index < t.rebuyLevels,
+    rebuyEndsAt: started ? rebuyEndsAt(t) : null,
+    lateRegOpen: t.status === 'registering' || (running && index < t.lateRegLevels),
+    lateRegEndsAt: lateEnd,
+  }
+}
+
+function placeOf(st: State, s: Seat, place: number): TournamentPlace {
+  const t = st.tournament as Tournament
+  return { userId: s.userId, name: s.name, avatar: s.avatar, place, entries: t.entries[s.userId] ?? 1 }
+}
+
+/** Knocks out the given seats together: the one who started the hand with less gets the worse place. */
+function eliminate(st: State, seats: { i: number; at: number; start: number }[]): void {
+  const t = st.tournament as Tournament
+  const order = [...seats].sort((a, b) => a.at - b.at || a.start - b.start || a.i - b.i)
+  for (const e of order) {
+    const s = seatAt(st, e.i)
+    if (s === null) continue
+    const remaining = st.seats.filter((x) => x !== null).length
+    t.out.push(placeOf(st, s, remaining))
+    delete t.busted[s.userId]
+    st.seats[e.i] = null
+  }
+  checkWinner(st)
+}
+
+/** One player left: the tournament is over and the table closes (the results stay in the public view). */
+function checkWinner(st: State): void {
+  const t = st.tournament as Tournament
+  const left = st.seats.flatMap((s) => (s === null ? [] : [s]))
+  if (t.status !== 'running' || left.length !== 1) return
+  t.winner = placeOf(st, left[0] as Seat, 1)
+  t.status = 'finished'
+  st.phase = 'waiting'
+  st.nextAt = null
+  st.closed = true
+}
+
+/** Players with no chips: wait for a rebuy while it is allowed (up to rebuyDecideMs), otherwise they are out. */
+function settleBusts(st: State, ctx: Ctx): void {
+  const t = st.tournament as Tournament
+  const net = st.hand?.result?.net ?? {}
+  const open = tournamentClock(t, ctx.now).rebuyOpen
+  const out: { i: number; at: number; start: number }[] = []
+  st.seats.forEach((s, i) => {
+    if (s === null) return
+    if (s.stack > 0) {
+      delete t.busted[s.userId]
+      return
+    }
+    let b = t.busted[s.userId]
+    if (b === undefined) {
+      b = { at: ctx.now, start: -(net[String(i)] ?? 0) }
+      t.busted[s.userId] = b
+    }
+    if (!open || ctx.now >= b.at + t.rebuyDecideMs) out.push({ i, at: b.at, start: b.start })
+  })
+  if (out.length > 0) eliminate(st, out)
+}
+
 export interface Seat {
   userId: string
   name: string
@@ -296,6 +461,8 @@ export interface State {
   handNo: number
   button: number
   hand: Hand | null
+  /** Null (or missing in older states) at a cash table. */
+  tournament?: Tournament | null
 }
 
 export type Action =
@@ -311,6 +478,10 @@ export type Action =
   | { type: 'show' }
   | { type: 'tick' }
   | { type: 'close' }
+  /** Tournament: the opener starts it. */
+  | { type: 'start' }
+  /** Tournament: out of chips and done (no rebuy). */
+  | { type: 'bust' }
 
 export interface Ctx {
   now: number
@@ -323,8 +494,29 @@ export interface Ctx {
   deck?: Card[]
 }
 
-export function createState(ownerId: string, config: Config = DEFAULT_CONFIG): State {
+export function createState(
+  ownerId: string,
+  config: Config = DEFAULT_CONFIG,
+  opts: { tournament?: Partial<TournamentConfig> } = {},
+): State {
+  let tournament: Tournament | null = null
+  if (opts.tournament !== undefined) {
+    tournament = {
+      ...DEFAULT_TOURNAMENT,
+      ...opts.tournament,
+      status: 'registering',
+      startedAt: null,
+      entries: {},
+      busted: {},
+      out: [],
+      winner: null,
+    }
+    const first = levelNo(tournament, 0)
+    // Rebuy only with no chips left; blinds come from the level.
+    config = { ...config, sb: first.sb, bb: first.bb, rebuyBelow: 1, minPlayers: 2 }
+  }
   return {
+    tournament,
     config: { ...config },
     ownerId,
     closed: false,
@@ -352,10 +544,23 @@ export function seatIndexOf(st: { seats: ({ userId: string } | null)[] }, userId
   return st.seats.findIndex((s) => s !== null && s.userId === userId)
 }
 
-const canDeal = (s: Seat): boolean => !s.sittingOut && !s.leaving && s.stack > 0
+/** In a running tournament players who sit out are still dealt in (and blinded off); at a cash table they are not. */
+const dealer = (st: State) => (s: Seat): boolean =>
+  (!s.sittingOut || runningTournament(st)) && !s.leaving && s.stack > 0
 
 function countDealable(st: State): number {
+  const canDeal = dealer(st)
   return st.seats.filter((s) => s !== null && canDeal(s)).length
+}
+
+const runningTournament = (st: State): boolean => st.tournament?.status === 'running'
+
+/** Who acts next and until when. A player who sits out (tournament) times out at once. */
+function setTurn(st: State, ctx: Ctx, idx: number): void {
+  const h = st.hand as Hand
+  h.toAct = idx
+  const s = seatAt(st, idx)
+  h.deadline = s !== null && s.sittingOut ? ctx.now : ctx.now + st.config.turnMs
 }
 
 /** First seat clockwise after `from` that matches, or -1. */
@@ -406,6 +611,8 @@ function removeSeat(st: State, i: number): void {
 
 function maybeStart(st: State, ctx: Ctx): void {
   if (st.closed || st.phase !== 'waiting') return
+  // A tournament starts only when its opener presses start.
+  if (st.tournament && st.tournament.status !== 'running') return
   if (countDealable(st) >= st.config.minPlayers) {
     st.phase = 'between'
     st.nextAt = ctx.now + st.config.startMs
@@ -457,6 +664,24 @@ function beginNextHand(st: State, ctx: Ctx): void {
     if (s.leaving) removeSeat(st, i)
     else resetHandFields(s)
   })
+  const t = st.tournament
+  if (t && t.status === 'running') {
+    const level = levelAt(t, ctx.now)
+    st.config.sb = level.sb
+    st.config.bb = level.bb
+    settleBusts(st, ctx)
+    if (t.status !== 'running') return
+    if (countDealable(st) < st.config.minPlayers) {
+      // Someone is still deciding on a rebuy: wait for them (or for their time to run out).
+      const ends = Object.values(t.busted).map((b) => b.at + t.rebuyDecideMs)
+      ends.push(rebuyEndsAt(t))
+      st.phase = 'between'
+      st.nextAt = Math.max(ctx.now + 1, Math.min(...ends))
+      st.hand = null
+      return
+    }
+  }
+  const canDeal = dealer(st)
   if (countDealable(st) < st.config.minPlayers) {
     st.phase = 'waiting'
     st.nextAt = null
@@ -525,8 +750,7 @@ function advance(st: State, ctx: Ctx, from: number): void {
   }
   const next = nextToAct(st, from)
   if (next >= 0) {
-    h.toAct = next
-    h.deadline = ctx.now + st.config.turnMs
+    setTurn(st, ctx, next)
     return
   }
   // The betting round is complete.
@@ -553,8 +777,7 @@ function advance(st: State, ctx: Ctx, from: number): void {
   h.street += 1
   const deal = h.street === 1 ? 3 : 1
   for (let k = 0; k < deal; k++) h.board.push(h.deck.pop() as Card)
-  h.toAct = nextToAct(st, h.button)
-  h.deadline = ctx.now + st.config.turnMs
+  setTurn(st, ctx, nextToAct(st, h.button))
 }
 
 /** A bet that nobody called goes back to the bettor. */
@@ -772,6 +995,21 @@ export function applyAction(state: State, userId: string, action: Action, ctx: C
       return st
     }
 
+    case 'start': {
+      const t = st.tournament
+      if (!t || t.status !== 'registering') fail('ILLEGAL_ACTION')
+      if (userId !== st.ownerId && ctx.isAdmin !== true) fail('NOT_ALLOWED')
+      if (st.seats.filter((s) => s !== null).length < 2) fail('NEED_PLAYERS')
+      t.status = 'running'
+      t.startedAt = ctx.now
+      const first = levelNo(t, 0)
+      st.config.sb = first.sb
+      st.config.bb = first.bb
+      st.phase = 'waiting'
+      maybeStart(st, ctx)
+      return st
+    }
+
     case 'sit': {
       if (idx >= 0) {
         const s = mustSeat(st, idx)
@@ -779,6 +1017,13 @@ export function applyAction(state: State, userId: string, action: Action, ctx: C
         s.leaving = false
         maybeStart(st, ctx)
         return st
+      }
+      const tour = st.tournament
+      if (tour) {
+        if (tour.out.some((o) => o.userId === userId)) fail('ELIMINATED')
+        if (!tournamentClock(tour, ctx.now).lateRegOpen) fail('REG_CLOSED')
+        delete st.ledger[userId]
+        tour.entries[userId] = 1
       }
       let target = action.seat
       if (target === undefined) target = st.seats.findIndex((s) => s === null)
@@ -832,6 +1077,7 @@ export function applyAction(state: State, userId: string, action: Action, ctx: C
       st.phase = 'waiting'
       st.nextAt = null
       st.closed = true
+      if (st.tournament && st.tournament.status !== 'finished') st.tournament.status = 'cancelled'
       return st
     }
   }
@@ -840,8 +1086,22 @@ export function applyAction(state: State, userId: string, action: Action, ctx: C
   const s = mustSeat(st, idx)
   const h = st.hand
 
+  const tour = st.tournament ?? null
   switch (action.type) {
     case 'leave': {
+      if (tour && tour.status === 'registering') {
+        // Not started yet: leaving cancels the registration.
+        st.seats[idx] = null
+        delete tour.entries[userId]
+        return st
+      }
+      if (tour) {
+        // Running tournament: the seat and the chips stay (blinded off) until the player comes back.
+        s.sittingOut = true
+        s.sitOutNext = false
+        if (st.phase === 'hand' && h !== null && h.toAct === idx) h.deadline = ctx.now
+        return st
+      }
       if (st.phase === 'waiting' || h === null) {
         removeSeat(st, idx)
         return st
@@ -862,13 +1122,39 @@ export function applyAction(state: State, userId: string, action: Action, ctx: C
     case 'rebuy': {
       if (s.stack >= (st.config.rebuyBelow ?? 1)) fail('HAS_CHIPS')
       if (st.phase === 'hand' && s.inHand && !s.folded) fail('ILLEGAL_ACTION')
+      if (tour) {
+        if (!tournamentClock(tour, ctx.now).rebuyOpen) fail('REBUY_CLOSED')
+        tour.entries[userId] = (tour.entries[userId] ?? 1) + 1
+        delete tour.busted[userId]
+      }
       s.stack += st.config.buyin
       s.bought += st.config.buyin
+      if (tour && st.phase === 'between' && st.hand === null && countDealable(st) >= st.config.minPlayers) {
+        // The table was waiting for this rebuy: deal soon.
+        st.nextAt = Math.min(st.nextAt ?? Infinity, ctx.now + st.config.startMs)
+      }
       maybeStart(st, ctx)
       return st
     }
 
+    case 'bust': {
+      if (!tour || tour.status !== 'running' || s.stack > 0) fail('ILLEGAL_ACTION')
+      if (st.phase === 'hand' && s.inHand && !s.folded) fail('ILLEGAL_ACTION')
+      const b = tour.busted[userId]
+      eliminate(st, [{ i: idx, at: b?.at ?? ctx.now, start: b?.start ?? 0 }])
+      if (!st.closed && st.phase === 'between' && st.hand === null && countDealable(st) >= st.config.minPlayers) {
+        st.nextAt = Math.min(st.nextAt ?? Infinity, ctx.now + st.config.startMs)
+      }
+      return st
+    }
+
     case 'sit_out': {
+      if (tour) {
+        // Tournament: dealt in anyway, every decision times out at once.
+        s.sittingOut = true
+        if (st.phase === 'hand' && h !== null && h.toAct === idx) h.deadline = ctx.now
+        return st
+      }
       if (st.phase === 'hand' && s.inHand && !s.folded) s.sitOutNext = true
       else s.sittingOut = true
       return st
@@ -961,6 +1247,8 @@ export interface PublicState {
   seats: (PublicSeat | null)[]
   hand: PublicHand | null
   standings: Standing[]
+  /** Null at a cash table. All of it is public (levels, who is out and in which place). */
+  tournament: Tournament | null
 }
 
 /** What everybody may see. Never contains the deck or face-down cards. */
@@ -1023,6 +1311,7 @@ export function publicView(st: State, v: number): PublicState {
             result: h.result,
           },
     standings,
+    tournament: st.tournament ? (JSON.parse(JSON.stringify(st.tournament)) as Tournament) : null,
   }
 }
 
@@ -1115,15 +1404,64 @@ export function chipBreakdown(amount: number, values: readonly number[] = [250, 
  * Deterministic self-check: plays `hands` hands of random legal poker with a seeded generator and returns a
  * fingerprint. A deployed copy of this file must return the same fingerprint as the tested source.
  */
-export function selfCheck(seed: number, hands: number): string {
+export function seededRand(seed: number): Rand {
   let a = seed >>> 0
-  const rand: Rand = (n) => {
+  return (n) => {
     a = (a + 0x6d2b79f5) >>> 0
     let t = a
     t = Math.imul(t ^ (t >>> 15), t | 1)
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
     return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n)
   }
+}
+
+/** Random legal move for the player to act (used by the self-checks and tests). */
+export function randomMove(st: State, rand: Rand): Action {
+  const h = st.hand as Hand
+  const opts = turnOptions(st, h.toAct as number)
+  const roll = rand(100)
+  if (roll < 10 && !opts.canCheck) return { type: 'fold' }
+  if (roll < 32 && opts.canRaise) return { type: 'raise', to: opts.minTo + st.config.unit * rand((opts.maxTo - opts.minTo) / st.config.unit + 1) }
+  return opts.canCheck ? { type: 'check' } : { type: 'call' }
+}
+
+/**
+ * Plays a whole tournament (short levels) with random moves, random rebuys and "done" presses.
+ * Returns the final state and the number of steps.
+ */
+export function playTournament(seed: number, players: number, maxSteps = 200_000): { st: State; steps: number; digest: number } {
+  const rand = seededRand(seed)
+  let now = 1_000_000
+  let st = createState('u0', DEFAULT_CONFIG, { tournament: { levelMs: 60_000, rebuyDecideMs: 10_000 } })
+  for (let i = 0; i < players; i++) st = applyAction(st, `u${i}`, { type: 'sit' }, { now, rand, profile: { name: `P${i}`, avatar: null } })
+  st = applyAction(st, 'u0', { type: 'start' }, { now, rand })
+  let steps = 0
+  let digest = 0
+  while (!st.closed && steps < maxSteps) {
+    steps++
+    now += 500
+    const h = st.hand
+    if (st.phase === 'hand' && h !== null && h.toAct !== null && h.toAct >= 0) {
+      st = applyAction(st, mustSeat(st, h.toAct).userId, randomMove(st, rand), { now, rand })
+    } else {
+      const t = st.tournament as Tournament
+      for (const s of st.seats) {
+        if (s === null || s.stack > 0 || st.closed) continue
+        const roll = rand(10)
+        if (roll < 3 && tournamentClock(t, now).rebuyOpen) st = applyAction(st, s.userId, { type: 'rebuy' }, { now, rand })
+        else if (roll === 9) st = applyAction(st, s.userId, { type: 'bust' }, { now, rand })
+      }
+      if (st.closed) break
+      now = Math.max(now, st.nextAt ?? now)
+      st = applyAction(st, 'u0', { type: 'tick' }, { now, rand })
+    }
+    for (const s of st.seats) if (s !== null) digest = (Math.imul(digest, 31) + s.stack + 3 * s.bet) >>> 0
+  }
+  return { st, steps, digest }
+}
+
+export function selfCheck(seed: number, hands: number): string {
+  const rand = seededRand(seed)
   let st = createState('u0')
   let now = 1_000_000
   for (let i = 0; i < 6; i++) st = applyAction(st, `u${i}`, { type: 'sit' }, { now, rand, profile: { name: `P${i}`, avatar: null } })
@@ -1134,13 +1472,7 @@ export function selfCheck(seed: number, hands: number): string {
     now += 500
     const h = st.hand
     if (st.phase === 'hand' && h !== null && h.toAct !== null) {
-      const opts = turnOptions(st, h.toAct)
-      const roll = rand(100)
-      let action: Action
-      if (roll < 10 && !opts.canCheck) action = { type: 'fold' }
-      else if (roll < 32 && opts.canRaise) action = { type: 'raise', to: opts.minTo + st.config.unit * rand((opts.maxTo - opts.minTo) / st.config.unit + 1) }
-      else action = opts.canCheck ? { type: 'check' } : { type: 'call' }
-      st = applyAction(st, mustSeat(st, h.toAct).userId, action, { now, rand })
+      st = applyAction(st, mustSeat(st, h.toAct).userId, randomMove(st, rand), { now, rand })
     } else {
       for (const s of st.seats) if (s !== null && s.stack === 0) st = applyAction(st, s.userId, { type: 'rebuy' }, { now, rand })
       now = Math.max(now, st.nextAt ?? now)
@@ -1149,5 +1481,11 @@ export function selfCheck(seed: number, hands: number): string {
     for (const s of st.seats) if (s !== null) digest = (Math.imul(digest, 31) + s.stack + 7 * s.bet + (s.folded ? 3 : 0)) >>> 0
     digest = (Math.imul(digest, 31) + (st.hand?.board.length ?? 0) + (st.hand?.toAct ?? -1) + 1) >>> 0
   }
-  return `${st.handNo}:${steps}:${digest}:${st.seats.map((s) => (s === null ? '-' : `${s.stack}/${s.bought}`)).join(',')}`
+  const tour = playTournament(seed, 5)
+  const tt = tour.st.tournament as Tournament
+  const places = tt.out.map((o) => `${o.userId}#${o.place}x${o.entries}`).join(',')
+  return (
+    `${st.handNo}:${steps}:${digest}:${st.seats.map((s) => (s === null ? '-' : `${s.stack}/${s.bought}`)).join(',')}` +
+    `|T:${tour.st.handNo}:${tour.steps}:${tour.digest}:${tt.winner?.userId ?? '-'}:${places}`
+  )
 }

@@ -1,5 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { describeCards, seatIndexOf, type Action, type Card, type PublicHand, type PublicState, type TurnOptions } from '../../lib/holdem/engine'
+import {
+  describeCards,
+  seatIndexOf,
+  tournamentClock,
+  type Action,
+  type Card,
+  type PublicHand,
+  type PublicState,
+  type TurnOptions,
+} from '../../lib/holdem/engine'
 import { useRemaining } from './pieces'
 
 interface Props {
@@ -28,6 +37,11 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
   const myTurn = seat !== null && pub.phase === 'hand' && h !== null && h.toAct === idx
   const untilNext = useRemaining(pub.phase === 'between' ? pub.nextAt : null, offset)
   const hint = cards !== null && seat?.inHand === true && h !== null ? describeCards([...cards, ...h.board]) : ''
+  const tour = pub.tournament ?? null
+  const clock = tour ? tournamentClock(tour, Date.now() + offset) : null
+  const myOut = tour?.out.find((o) => o.userId === me) ?? null
+  const bustedAt = tour?.busted[me]?.at ?? null
+  const rebuyLeft = useRemaining(tour && bustedAt !== null ? bustedAt + tour.rebuyDecideMs : null, offset)
 
   // Chosen in advance ("Call Any" / check / fold); it belongs to one hand and is carried out when the turn comes.
   const [pre, setPre] = useState<{ hand: number; kind: Pre } | null>(null)
@@ -41,7 +55,8 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
   useEffect(() => {
     if (!myTurn || chosen === null) return
     // "Fold" never throws away a free check.
-    const action: Action = chosen === 'callany' ? (canCheckNow ? { type: 'check' } : { type: 'call' }) : canCheckNow ? { type: 'check' } : { type: 'fold' }
+    const action: Action =
+      chosen === 'callany' ? (canCheckNow ? { type: 'check' } : { type: 'call' }) : canCheckNow ? { type: 'check' } : { type: 'fold' }
     setPre(null)
     setAutoTurn(turnKey)
     void act(action).then((ok) => {
@@ -54,7 +69,22 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
   }, [myTurn, chosen])
 
   let body: ReactNode
-  if (seat === null) {
+  if (seat === null && tour) {
+    body = myOut ? (
+      <Status text={`הודחת במקום ${myOut.place}. אפשר להמשיך לצפות בטורניר.`} tone="amber" />
+    ) : clock?.lateRegOpen ? (
+      <>
+        <Status text={`הרשמה לטורניר: ${pub.config.buyin} צ׳יפים. אפשר גם ללחוץ על כיסא פנוי.`} />
+        <div className="flex gap-2">
+          <button type="button" className="hl-btn brass" disabled={busy} onClick={() => void act({ type: 'sit' })}>
+            הרשמה לטורניר
+          </button>
+        </div>
+      </>
+    ) : (
+      <Status text="ההרשמה לטורניר נסגרה. אפשר לצפות." />
+    )
+  } else if (seat === null) {
     const full = pub.seats.every((s) => s !== null)
     body = full ? (
       <Status text="השולחן מלא כרגע. אפשר לצפות ולחכות לכיסא שיתפנה." />
@@ -97,6 +127,31 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
         busy={busy}
       />
     )
+  } else if (tour && seat.stack === 0 && !(pub.phase === 'hand' && seat.inHand && !seat.folded)) {
+    const open = clock?.rebuyOpen === true
+    body = (
+      <>
+        <Status
+          text={
+            open
+              ? `נגמרו לך הצ׳יפים. ריביי ${pub.config.buyin}, או שסיימת${bustedAt !== null ? ` · עוד ${Math.ceil(rebuyLeft / 1000)} שניות להחליט` : ''}.`
+              : 'נגמרו לך הצ׳יפים וזמן הריביי עבר. אתה יוצא מהטורניר.'
+          }
+          tone="amber"
+        />
+        <div className="flex gap-2">
+          <button type="button" className="hl-btn call" disabled={busy} onClick={() => void act({ type: 'bust' })}>
+            סיימתי
+          </button>
+          {open && (
+            <button type="button" className="hl-btn brass" disabled={busy} onClick={() => void act({ type: 'rebuy' })}>
+              ריביי
+              <small dir="ltr">{pub.config.buyin}</small>
+            </button>
+          )}
+        </div>
+      </>
+    )
   } else if (seat.stack === 0 && !(pub.phase === 'hand' && seat.inHand && !seat.folded)) {
     body = (
       <>
@@ -132,7 +187,14 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
   } else if (seat.sittingOut) {
     body = (
       <>
-        <Status text={`אתה יושב בחוץ. הכיסא ו-${seat.stack} הצ׳יפים שלך נשמרים.`} tone="amber" />
+        <Status
+          text={
+            tour
+              ? `אתה יושב בחוץ: מקבל קלפים ומשלם בליינדים, וכל תור שלך הוא צ׳ק או פולד אוטומטי. נשארו ${seat.stack} צ׳יפים.`
+              : `אתה יושב בחוץ. הכיסא ו-${seat.stack} הצ׳יפים שלך נשמרים.`
+          }
+          tone="amber"
+        />
         <div className="flex gap-2">
           <button type="button" className="hl-btn raise" disabled={busy} onClick={() => void act({ type: 'sit_in' })}>
             חזרתי לשחק
@@ -158,9 +220,16 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
       </>
     )
   } else if (pub.phase === 'waiting') {
-    body = <Status text="ממתינים לשחקן נוסף כדי להתחיל…" />
+    body = <Status text={tour?.status === 'registering' ? 'נרשמת לטורניר. ממתינים שהפותח יתחיל…' : 'ממתינים לשחקן נוסף כדי להתחיל…'} />
   } else if (pub.phase === 'between') {
-    body = <Status text={h?.result ? 'היד הבאה מתחילה מיד…' : `מתחילים בעוד ${Math.ceil(untilNext / 1000)}…`} />
+    const deciding = tour ? Object.keys(tour.busted).length > 0 && h === null : false
+    body = (
+      <Status
+        text={
+          deciding ? 'ממתינים לשחקן שמחליט על ריביי…' : h?.result ? 'היד הבאה מתחילה מיד…' : `מתחילים בעוד ${Math.ceil(untilNext / 1000)}…`
+        }
+      />
+    )
   } else {
     const actor = h !== null && h.toAct !== null ? pub.seats[h.toAct] : null
     const waitingFor = actor ? `התור של ${actor.name}` : ''
@@ -176,7 +245,12 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
         {status}
         <p className="text-center text-xs text-slate-500">בחירה מראש לתור שלך</p>
         <div className="flex gap-2">
-          <button type="button" className={`hl-pre fold ${chosen === 'fold' ? 'on' : ''}`} aria-pressed={chosen === 'fold'} onClick={() => toggle('fold')}>
+          <button
+            type="button"
+            className={`hl-pre fold ${chosen === 'fold' ? 'on' : ''}`}
+            aria-pressed={chosen === 'fold'}
+            onClick={() => toggle('fold')}
+          >
             פולד
           </button>
           <button
@@ -249,7 +323,12 @@ function TurnControls({ hand, opts, stack, myBet, bb, turnMs, offset, hint, act,
       <div className="flex items-center gap-2 text-xs text-slate-300">
         <span className="font-bold text-amber-200">התור שלך</span>
         <span className="hl-timebar flex-1">
-          <i style={{ width: `${fraction * 100}%`, background: fraction < 0.25 ? '#f43f5e' : undefined }} />
+          <i
+            style={{
+              width: `${fraction * 100}%`,
+              background: fraction < 0.25 ? '#f43f5e' : undefined,
+            }}
+          />
         </span>
         <span className="font-num tabular-nums" dir="ltr">
           {Math.ceil(remaining / 1000)}
@@ -260,7 +339,12 @@ function TurnControls({ hand, opts, stack, myBet, bb, turnMs, offset, hint, act,
       {opts.canRaise && !allInOnly && (
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <button type="button" className="hl-quick !flex-none px-3" onClick={() => setTo(clamp(value - bb, opts.minTo, opts.maxTo))} aria-label="פחות">
+            <button
+              type="button"
+              className="hl-quick !flex-none px-3"
+              onClick={() => setTo(clamp(value - bb, opts.minTo, opts.maxTo))}
+              aria-label="פחות"
+            >
               −
             </button>
             <input
@@ -274,7 +358,12 @@ function TurnControls({ hand, opts, stack, myBet, bb, turnMs, offset, hint, act,
               onChange={(e) => setTo(Number(e.target.value))}
               aria-label="גובה ההימור"
             />
-            <button type="button" className="hl-quick !flex-none px-3" onClick={() => setTo(clamp(value + bb, opts.minTo, opts.maxTo))} aria-label="יותר">
+            <button
+              type="button"
+              className="hl-quick !flex-none px-3"
+              onClick={() => setTo(clamp(value + bb, opts.minTo, opts.maxTo))}
+              aria-label="יותר"
+            >
               +
             </button>
           </div>
@@ -310,7 +399,12 @@ function TurnControls({ hand, opts, stack, myBet, bb, turnMs, offset, hint, act,
           </button>
         )}
         {opts.canRaise && (
-          <button type="button" className="hl-btn raise" disabled={busy} onClick={() => void act({ type: 'raise', to: allInOnly ? opts.maxTo : value })}>
+          <button
+            type="button"
+            className="hl-btn raise"
+            disabled={busy}
+            onClick={() => void act({ type: 'raise', to: allInOnly ? opts.maxTo : value })}
+          >
             {allInOnly || value >= opts.maxTo ? 'אול-אין' : opening ? 'הימור' : 'רייז ל-'}
             <small dir="ltr">{allInOnly ? opts.maxTo - myBet : value}</small>
           </button>

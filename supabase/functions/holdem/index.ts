@@ -8,6 +8,7 @@ import {
   applyAction,
   cardsOf,
   createState,
+  DEFAULT_CONFIG,
   handSummary,
   HoldemError,
   holeByUser,
@@ -63,7 +64,8 @@ async function openTableId(): Promise<string | null> {
   return data?.id ?? null
 }
 
-async function create(uid: string): Promise<unknown> {
+async function create(uid: string, kind: unknown): Promise<unknown> {
+  if (kind !== undefined && kind !== 'cash' && kind !== 'tournament') throw new HoldemError('BAD_REQUEST')
   const admin = await isAdmin(uid)
   if (!admin) {
     const { data } = await db.from('holdem_settings').select('open_to_all').maybeSingle()
@@ -74,7 +76,7 @@ async function create(uid: string): Promise<unknown> {
   const existing = await openTableId()
   if (existing !== null) return { error: 'OPEN_TABLE_EXISTS', tableId: existing }
 
-  let state = createState(uid)
+  let state = createState(uid, DEFAULT_CONFIG, kind === 'tournament' ? { tournament: {} } : {})
   state = applyAction(state, uid, { type: 'sit' }, { now: Date.now(), rand, profile: await profileOf(uid) })
   const pub = publicView(state, 1)
   const { data, error } = await db.rpc('holdem_create', { p_owner: uid, p_state: state, p_pub: pub })
@@ -104,6 +106,8 @@ function cleanAction(raw: unknown): Action {
     case 'show':
     case 'tick':
     case 'close':
+    case 'start':
+    case 'bust':
       return { type: a.type }
     default:
       throw new HoldemError('BAD_REQUEST')
@@ -112,7 +116,7 @@ function cleanAction(raw: unknown): Action {
 
 async function act(uid: string, tableId: string, action: Action): Promise<unknown> {
   if (!UUID.test(tableId)) throw new HoldemError('BAD_REQUEST')
-  const admin = action.type === 'close' ? await isAdmin(uid) : false
+  const admin = action.type === 'close' || action.type === 'start' ? await isAdmin(uid) : false
   const profile = action.type === 'sit' ? await profileOf(uid) : undefined
 
   // Optimistic concurrency: read, apply, write only if nobody else wrote in between; otherwise retry.
@@ -164,7 +168,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       case 'time':
         return json({ now: Date.now() })
       case 'create':
-        return json(await create(uid))
+        return json(await create(uid, body.kind))
       case 'act':
         return json(await act(uid, String(body.tableId ?? ''), cleanAction(body.action)))
       default:
