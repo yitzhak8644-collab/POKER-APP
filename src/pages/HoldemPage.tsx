@@ -30,7 +30,9 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
   useEffect(() => {
     setMissing(false)
     if (!practice && (!id || !uid)) return
-    const b: HoldemBackend = practice ? new LocalBackend(name, avatar) : new RemoteBackend(id as string, uid, () => setMissing(true))
+    // Development only: /dev/holdem?turn=5 shortens the turn timer to try timeouts quickly.
+    const turn = import.meta.env.DEV ? Number(new URLSearchParams(window.location.search).get('turn')) || undefined : undefined
+    const b: HoldemBackend = practice ? new LocalBackend(name, avatar, turn) : new RemoteBackend(id as string, uid, () => setMissing(true))
     setBackend(b)
     return () => {
       b.dispose()

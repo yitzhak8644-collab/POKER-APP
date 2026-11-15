@@ -122,7 +122,7 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error }: Props) {
           {error}
         </p>
       )}
-      <div className="flex min-h-[7.25rem] flex-col justify-end gap-2">{body}</div>
+      <div className="flex min-h-[9.5rem] flex-col justify-end gap-2">{body}</div>
     </div>
   )
 }

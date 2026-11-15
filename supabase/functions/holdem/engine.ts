@@ -1003,3 +1003,44 @@ export function chipBreakdown(amount: number, values: readonly number[] = [250, 
   }
   return out
 }
+
+/**
+ * Deterministic self-check: plays `hands` hands of random legal poker with a seeded generator and returns a
+ * fingerprint. A deployed copy of this file must return the same fingerprint as the tested source.
+ */
+export function selfCheck(seed: number, hands: number): string {
+  let a = seed >>> 0
+  const rand: Rand = (n) => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n)
+  }
+  let st = createState('u0')
+  let now = 1_000_000
+  for (let i = 0; i < 6; i++) st = applyAction(st, `u${i}`, { type: 'sit' }, { now, rand, profile: { name: `P${i}`, avatar: null } })
+  let steps = 0
+  let digest = 0
+  while (st.handNo < hands && steps < 50_000) {
+    steps++
+    now += 500
+    const h = st.hand
+    if (st.phase === 'hand' && h !== null && h.toAct !== null) {
+      const opts = turnOptions(st, h.toAct)
+      const roll = rand(100)
+      let action: Action
+      if (roll < 10 && !opts.canCheck) action = { type: 'fold' }
+      else if (roll < 32 && opts.canRaise) action = { type: 'raise', to: opts.minTo + st.config.unit * rand((opts.maxTo - opts.minTo) / st.config.unit + 1) }
+      else action = opts.canCheck ? { type: 'check' } : { type: 'call' }
+      st = applyAction(st, mustSeat(st, h.toAct).userId, action, { now, rand })
+    } else {
+      for (const s of st.seats) if (s !== null && s.stack === 0) st = applyAction(st, s.userId, { type: 'rebuy' }, { now, rand })
+      now = Math.max(now, st.nextAt ?? now)
+      st = applyAction(st, 'u0', { type: 'tick' }, { now, rand })
+    }
+    for (const s of st.seats) if (s !== null) digest = (Math.imul(digest, 31) + s.stack + 7 * s.bet + (s.folded ? 3 : 0)) >>> 0
+    digest = (Math.imul(digest, 31) + (st.hand?.board.length ?? 0) + (st.hand?.toAct ?? -1) + 1) >>> 0
+  }
+  return `${st.handNo}:${steps}:${digest}:${st.seats.map((s) => (s === null ? '-' : `${s.stack}/${s.bought}`)).join(',')}`
+}

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   applyAction,
@@ -13,6 +13,7 @@ import {
   holeByUser,
   publicView,
   scoreLabel,
+  selfCheck,
   shuffledDeck,
   type Action,
   type Card,
@@ -543,6 +544,13 @@ describe('random play keeps every chip accounted for', () => {
 })
 
 describe('the edge function runs the same engine', () => {
+  it('the self-check is deterministic (the deployed function must report this exact fingerprint)', () => {
+    const print = selfCheck(11, 80)
+    expect(print).toBe(selfCheck(11, 80))
+    expect(print.startsWith('80:')).toBe(true)
+    writeFileSync('node_modules/.holdem-selfcheck.txt', print)
+  })
+
   it('supabase/functions/holdem/engine.ts is a verbatim copy', () => {
     const norm = (s: string): string => s.replace(/\r\n/g, '\n')
     const src = norm(readFileSync('src/lib/holdem/engine.ts', 'utf8'))

@@ -136,6 +136,16 @@
   text-overflow: ellipsis;
   color: #cbd5e1;
 }
+.hl-hand {
+  display: block;
+  font-weight: 700;
+  line-height: 1.15;
+  text-wrap: balance;
+  color: #e2e8f0;
+}
+.hl-hand.win {
+  color: var(--win);
+}
 .hl-stack {
   display: block;
   font-family: var(--font-num);

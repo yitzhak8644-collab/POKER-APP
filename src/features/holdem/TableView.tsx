@@ -17,12 +17,12 @@ const SEAT_POS: readonly [number, number][] = [
 ]
 /** Where each seat's bet lies on the felt. */
 const BET_POS: readonly [number, number][] = [
-  [50, 63.5],
+  [50, 60.5],
   [33, 67],
   [27, 57],
   [27, 37.5],
   [33, 24.5],
-  [50, 19.5],
+  [50, 24],
   [67, 24.5],
   [73, 37.5],
   [73, 57],
@@ -212,8 +212,10 @@ function SeatView({ pub, seat, index, isMe, offset, style, marks }: SeatProps) {
   if (won > 0) cls.push('is-winner')
 
   let tag: { text: string; cls: string } | null = null
-  if (won > 0) tag = { text: label ?? `+${won}`, cls: 't-win' }
-  else if (label !== undefined && !seat.folded) tag = { text: label, cls: '' }
+  // At a showdown the hand name takes the place of the player's name on the plate, so no tag is needed.
+  const showLabel = label !== undefined && !seat.folded
+  if (showLabel) tag = null
+  else if (won > 0) tag = { text: `+${won}`, cls: 't-win' }
   else if (seat.leaving) tag = { text: 'עזב', cls: 't-out' }
   else if (seat.sittingOut) tag = { text: 'יושב בחוץ', cls: 't-out' }
   else if (busted) tag = { text: 'בלי צ׳יפים', cls: 't-out' }
@@ -246,7 +248,11 @@ function SeatView({ pub, seat, index, isMe, offset, style, marks }: SeatProps) {
         {won > 0 && seat.cards === null && <span className="hl-float">+{won}</span>}
       </div>
       <div className="hl-plate" dir="rtl">
-        <bdi className="hl-name">{isMe ? 'אתה' : seat.name}</bdi>
+        {showLabel ? (
+          <span className={`hl-hand ${won > 0 ? 'win' : ''}`}>{label}</span>
+        ) : (
+          <bdi className="hl-name">{isMe ? 'אתה' : seat.name}</bdi>
+        )}
         <span className="hl-stack" dir="ltr">
           {seat.stack}
         </span>

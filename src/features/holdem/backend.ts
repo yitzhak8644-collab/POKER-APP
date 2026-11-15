@@ -3,6 +3,7 @@ import {
   applyAction,
   cardsOf,
   createState,
+  DEFAULT_CONFIG,
   publicView,
   seatIndexOf,
   type Action,
@@ -250,8 +251,8 @@ export class LocalBackend implements HoldemBackend {
   private timer: ReturnType<typeof setTimeout> | null = null
   private disposed = false
 
-  constructor(name: string, avatar: string | null) {
-    let st = createState('me')
+  constructor(name: string, avatar: string | null, turnSeconds?: number) {
+    let st = createState('me', turnSeconds ? { ...DEFAULT_CONFIG, turnMs: turnSeconds * 1000 } : DEFAULT_CONFIG)
     st = applyAction(st, 'me', { type: 'sit', seat: 0 }, { ...this.ctx(), profile: { name, avatar } })
     BOTS.forEach((b, i) => {
       st = applyAction(st, `bot${i}`, { type: 'sit', seat: b.seat }, { ...this.ctx(), profile: { name: b.name, avatar: null }, bot: true })

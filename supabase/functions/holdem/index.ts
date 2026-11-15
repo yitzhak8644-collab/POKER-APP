@@ -2,6 +2,7 @@
 // Every move goes through here. The full state (deck, face-down cards) lives in public.holdem_private,
 // which no client can read; clients get `pub` (Realtime on holdem_tables) and their own two cards.
 // engine.ts is a verbatim copy of src/lib/holdem/engine.ts (a vitest test fails if they differ).
+// It is deployed as a minified build of that file; `ping` returns its self-check fingerprint (see README).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import {
   applyAction,
@@ -10,6 +11,7 @@ import {
   HoldemError,
   holeByUser,
   publicView,
+  selfCheck,
   type Action,
   type Ctx,
   type State,
@@ -142,12 +144,18 @@ async function act(uid: string, tableId: string, action: Action): Promise<unknow
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
+    // Health check (no user data): proves this deployment runs the tested engine and can reach the database.
+    if (body.op === 'ping') {
+      const { error } = await db.from('holdem_settings').select('id').limit(1)
+      return json({ ok: true, check: selfCheck(11, 80), db: error === null })
+    }
+
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
     const { data: auth, error: authError } = await db.auth.getUser(token)
     if (authError || !auth?.user) return json({ error: 'NOT_AUTHENTICATED' })
     const uid = auth.user.id
 
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
     switch (body.op) {
       case 'time':
         return json({ now: Date.now() })
