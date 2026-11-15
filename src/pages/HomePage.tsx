@@ -51,7 +51,7 @@ export function HomePage() {
       </header>
 
       <Link to="/balance" className={`${btnSecondary} block w-full text-center`}>
-        📊 טבלת איזון כוללת
+        {isAdmin ? '📊 טבלת איזון כוללת' : '📊 המאזן שלי'}
       </Link>
 
       <PayBoxLink />

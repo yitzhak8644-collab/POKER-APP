@@ -112,6 +112,23 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
         </div>
       </>
     )
+  } else if (
+    seat.stack > 0 &&
+    seat.stack < (pub.config.rebuyBelow ?? 0) &&
+    !(pub.phase === 'hand' && seat.inHand && !seat.folded) &&
+    !(pub.phase === 'between' && h?.result && cards !== null && seat.cards === null)
+  ) {
+    body = (
+      <>
+        <Status text={`נשארו לך ${seat.stack} צ׳יפים. אפשר לקחת ריביי לפני היד הבאה.`} tone="amber" />
+        <div className="flex gap-2">
+          <button type="button" className="hl-btn brass" disabled={busy} onClick={() => void act({ type: 'rebuy' })}>
+            ריביי
+            <small dir="ltr">{pub.config.buyin}</small>
+          </button>
+        </div>
+      </>
+    )
   } else if (seat.sittingOut) {
     body = (
       <>
@@ -128,6 +145,12 @@ export function ActionBar({ pub, me, cards, offset, act, busy, error, onFinish }
       <>
         <Status text={`רוצה להראות מה היה לך? נשארו ${Math.ceil(untilNext / 1000)} שניות`} />
         <div className="flex gap-2">
+          {seat.stack > 0 && seat.stack < (pub.config.rebuyBelow ?? 0) && (
+            <button type="button" className="hl-btn call" disabled={busy} onClick={() => void act({ type: 'rebuy' })}>
+              ריביי
+              <small dir="ltr">{pub.config.buyin}</small>
+            </button>
+          )}
           <button type="button" className="hl-btn brass" lang="en" disabled={busy} onClick={() => void act({ type: 'show' })}>
             Show
           </button>

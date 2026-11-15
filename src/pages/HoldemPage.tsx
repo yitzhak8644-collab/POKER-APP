@@ -6,6 +6,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { useIsAdmin } from '../features/games/hooks'
 import { ActionBar } from '../features/holdem/ActionBar'
 import { LocalBackend, RemoteBackend, type HoldemBackend } from '../features/holdem/backend'
+import { useSoundSetting, useTableSounds } from '../features/holdem/sounds'
 import { TableView } from '../features/holdem/TableView'
 import { useHoldem } from '../features/holdem/useHoldem'
 import '../features/holdem/holdem.css'
@@ -26,6 +27,8 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
   const [missing, setMissing] = useState(false)
   const [menu, setMenu] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmExit, setConfirmExit] = useState(false)
+  const [soundOn, setSoundOn] = useSoundSetting()
 
   useEffect(() => {
     setMissing(false)
@@ -41,6 +44,7 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
   }, [practice, id, uid, name, avatar])
 
   const { snap, act, busy, error } = useHoldem(backend)
+  useTableSounds(snap, backend?.me ?? '')
 
   if (missing) {
     return (
@@ -63,7 +67,7 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
   const { pub, cards } = snap
   const me = backend.me
   const mySeat = seatIndexOf(pub, me)
-  const seat = mySeat >= 0 ? pub.seats[mySeat] : null
+  const seat = mySeat >= 0 ? (pub.seats[mySeat] ?? null) : null
   const canClose = !practice && (pub.ownerId === me || isAdmin)
   const players = pub.seats.filter((s) => s !== null).length
 
@@ -73,6 +77,13 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
       else if (!seat.sittingOut) await act({ type: 'sit_out' })
     }
     navigate('/')
+  }
+  // Leaving in the middle of a hand folds it, so that one asks first.
+  const inHand = seat !== null && pub.phase === 'hand' && seat.inHand && !seat.folded
+  const exit = (): void => {
+    setMenu(false)
+    if (inHand && !practice) setConfirmExit(true)
+    else void goHome('leave')
   }
 
   if (pub.closed) {
@@ -100,6 +111,10 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
           <bdi dir="ltr" className="font-num">
             {pub.config.sb}/{pub.config.bb}
           </bdi>
+          {' '}·{' '}
+          <bdi dir="ltr" className="font-num">
+            {players}/{pub.seats.length}
+          </bdi>
           {pub.handNo > 0 && (
             <>
               {' '}
@@ -110,9 +125,20 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
             </>
           )}
         </p>
-        <span className="rounded-lg border border-slate-800 px-2 py-1.5 font-num" dir="ltr">
-          {players}/{pub.seats.length}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            className="rounded-lg border border-slate-700 bg-slate-900/70 px-2 py-1.5"
+            onClick={() => setSoundOn(!soundOn)}
+            aria-label={soundOn ? 'השתקת צלילים' : 'הפעלת צלילים'}
+            aria-pressed={soundOn}
+          >
+            {soundOn ? '🔊' : '🔇'}
+          </button>
+          <button type="button" className="rounded-lg border border-rose-900 bg-rose-950/60 px-3 py-1.5 text-rose-200" onClick={exit}>
+            יציאה
+          </button>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1">
@@ -127,6 +153,15 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
             כניסה וריביי: {pub.config.buyin} צ׳יפים · בליינדים {pub.config.sb}/{pub.config.bb} · {pub.config.turnMs / 1000} שניות לתור · צ׳יפים בלבד,
             בלי כסף.
           </p>
+          <p className="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+            חוק 7-2: מי שזוכה בקופה עם 7-2 מקבל {pub.config.sevenDeuceBonus ?? 40} צ׳יפים מכל מי שיושב בשולחן. הקלפים שלו נחשפים לכולם.
+          </p>
+          <button type="button" className={`${btnSecondary} w-full text-rose-200`} disabled={busy} onClick={exit}>
+            {practice ? 'יציאה מהאימון' : seat ? 'יציאה מהשולחן (הצ׳יפים נשמרים)' : 'יציאה לדף הבית'}
+          </button>
+          <button type="button" className={`${btnSecondary} w-full`} onClick={() => setSoundOn(!soundOn)}>
+            צלילים: {soundOn ? 'פועלים 🔊' : 'כבויים 🔇'}
+          </button>
           <Standings pub={pub} me={me} />
           {seat && !seat.leaving && !practice && (
             <button
@@ -141,12 +176,9 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
               {seat.sittingOut ? 'חזרתי לשחק' : seat.sitOutNext ? 'תשב בחוץ בסוף היד' : 'לשבת בחוץ (הכיסא נשמר)'}
             </button>
           )}
-          <button type="button" className={`${btnSecondary} w-full`} disabled={busy} onClick={() => void goHome('keep')}>
-            {practice ? 'יציאה מהאימון' : seat ? 'לדף הבית (הכיסא נשמר, יושב בחוץ)' : 'לדף הבית'}
-          </button>
           {seat && !practice && (
-            <button type="button" className={`${btnSecondary} w-full`} disabled={busy} onClick={() => void goHome('leave')}>
-              לעזוב את השולחן
+            <button type="button" className={`${btnSecondary} w-full`} disabled={busy} onClick={() => void goHome('keep')}>
+              הפסקה: לדף הבית והכיסא נשמר
             </button>
           )}
           {canClose &&
@@ -170,6 +202,28 @@ export function HoldemPage({ practice = false }: { practice?: boolean }) {
           <button type="button" className={`${btnPrimary} w-full`} onClick={() => setMenu(false)}>
             חזרה למשחק
           </button>
+        </div>
+      </Dialog>
+
+      <Dialog open={confirmExit} onClose={() => setConfirmExit(false)} title="לצאת מהשולחן?">
+        <div className="space-y-3" dir="rtl">
+          <p className="text-sm text-slate-300">אתה באמצע יד. אם תצא עכשיו היד שלך תתקפל. הצ׳יפים שלך נשמרים ואפשר לחזור לשולחן מתי שתרצה.</p>
+          <div className="flex gap-2">
+            <button type="button" className={`${btnSecondary} flex-1`} onClick={() => setConfirmExit(false)}>
+              להישאר
+            </button>
+            <button
+              type="button"
+              className={`${btnDanger} flex-1`}
+              disabled={busy}
+              onClick={() => {
+                setConfirmExit(false)
+                void goHome('leave')
+              }}
+            >
+              יציאה
+            </button>
+          </div>
         </div>
       </Dialog>
     </main>

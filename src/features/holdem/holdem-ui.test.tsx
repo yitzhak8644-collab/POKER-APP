@@ -78,6 +78,19 @@ describe('the bar under the Hold\'em table', () => {
     expect(html).toContain('חזרתי לשחק')
   })
 
+  it('offers a rebuy between hands to a player below 40 chips', () => {
+    let st = act(table(3), 0, { type: 'fold' })
+    st.seats[0] = { ...(st.seats[0] as NonNullable<State['seats'][number]>), stack: 35 }
+    st = act(st, 1, { type: 'fold' })
+    // during the Show window: Show plus a rebuy button
+    expect(bar(st, 'u0')).toContain('>Show<')
+    expect(bar(st, 'u0')).toContain('ריביי')
+    // after showing: the low-stack message
+    st = act(st, 0, { type: 'show' })
+    expect(bar(st, 'u0')).toContain('נשארו לך 35 צ׳יפים')
+    expect(bar(st, 'u0')).toContain('ריביי')
+  })
+
   it('invites a visitor to join', () => {
     expect(bar(table(2), 'visitor')).toContain('הצטרפות לשולחן')
   })
@@ -92,6 +105,16 @@ describe('the Hold\'em table', () => {
     expect(html).toContain('aria-label="A עלה"')
     expect(html).not.toContain('aria-label="K תלתן"')
     expect(html.split('hl-card back').length - 1).toBe(4) // two opponents, two face-down cards each
+  })
+
+  it('announces a 7-2 win and tags who paid', () => {
+    let st = table(2, 'As Ah 7c 2d')
+    st = act(st, 0, { type: 'raise', to: 20 })
+    st = act(st, 1, { type: 'fold' })
+    const html = renderToStaticMarkup(<TableView pub={publicView(st, 1)} me="u1" cards={cardsOf(st, 'u1')} offset={0} />)
+    expect(html).toContain('7-2! P0 זכה ומקבל 40 מכל אחד (40)')
+    expect(html).toContain('7-2 ‎-40')
+    expect(html).toContain('aria-label="7 תלתן"')
   })
 
   it('marks a sitting-out player and still shows the stack', () => {

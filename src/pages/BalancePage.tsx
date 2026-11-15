@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Avatar, Money } from '../components/ui'
-import { useOverallBalance } from '../features/games/hooks'
+import { useIsAdmin, useOverallBalance } from '../features/games/hooks'
 import type { BalanceRow } from '../features/games/types'
 import { toHebrewMessage } from '../lib/errors'
 import { formatGameDate } from '../lib/format'
@@ -33,7 +33,10 @@ function Row({ r, rank }: { r: BalanceRow; rank?: number }) {
 /** Long-term table: each person's total net result = old PayBox balance + every closed game in the app. */
 export function BalancePage() {
   const q = useOverallBalance()
+  const admin = useIsAdmin()
   const rows = q.data ?? []
+  // Only the general manager sees the whole table; the server returns one row to everyone else.
+  if (admin.data !== true) return <MyBalance loading={q.isLoading || admin.isLoading} error={q.error} row={rows[0] ?? null} />
   const registered = rows.filter((r) => r.registered)
   const others = rows.filter((r) => !r.registered && !r.inactive)
   const inactive = rows.filter((r) => !r.registered && r.inactive)
@@ -101,6 +104,50 @@ export function BalancePage() {
           נכללות).
         </p>
       )}
+    </main>
+  )
+}
+
+/** A player's own line: how much they are up or down overall. */
+function MyBalance({ loading, error, row }: { loading: boolean; error: unknown; row: BalanceRow | null }) {
+  return (
+    <main className="mx-auto max-w-md space-y-4 p-4">
+      <header className="flex items-center gap-3">
+        <Link to="/" className="text-sm text-slate-400 underline">
+          חזרה
+        </Link>
+        <h1 className="flex-1 text-xl font-bold">המאזן שלי</h1>
+      </header>
+      {loading && <p className="text-slate-400">טוען…</p>}
+      {error ? <p className="text-rose-400">{toHebrewMessage(error)}</p> : null}
+      {!loading && row !== null && (
+        <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 text-center">
+          <p className="text-sm text-slate-400">{row.total > 0 ? 'אתה מרוויח בסך הכול' : row.total < 0 ? 'אתה מפסיד בסך הכול' : 'אתה מאוזן'}</p>
+          <p className="text-4xl font-bold">
+            <Money value={row.total} signed className={tone(row.total)} />
+          </p>
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-slate-950 p-3">
+              <dt className="text-xs text-slate-500">לפני האפליקציה</dt>
+              <dd className="mt-1 font-bold">
+                <Money value={row.opening} signed />
+              </dd>
+            </div>
+            <div className="rounded-xl bg-slate-950 p-3">
+              <dt className="text-xs text-slate-500">באפליקציה</dt>
+              <dd className="mt-1 font-bold">
+                <Money value={row.app_total} signed />
+              </dd>
+            </div>
+          </dl>
+          <p className="text-xs text-slate-500">
+            {row.games > 0 ? `${row.games} משחקים באפליקציה` : 'עוד לא שיחקת באפליקציה'}
+            {row.last_played !== null && <> · אחרון {formatGameDate(row.last_played)}</>}
+          </p>
+          <p className="text-xs text-slate-500">התוצאות של שחקנים אחרים פרטיות.</p>
+        </section>
+      )}
+      {!loading && row === null && !error && <p className="text-slate-400">אין עדיין נתונים עבורך.</p>}
     </main>
   )
 }

@@ -92,7 +92,11 @@ export function TableView({ pub, me, cards, offset, onSit }: Props) {
   }
 
   let banner: string | null = null
-  if (result !== null) {
+  const bonus = result?.bonus?.[0]
+  if (bonus !== undefined) {
+    const who = bonus.seat === mySeat ? 'זכית' : `${pub.seats[bonus.seat]?.name ?? ''} זכה`
+    banner = `7-2! ${who} ומקבל ${pub.config.sevenDeuceBonus ?? 40} מכל אחד (${bonus.total})`
+  } else if (result !== null) {
     const ids = Object.keys(result.won).map(Number)
     const first = ids[0]
     if (ids.length === 1 && first !== undefined) {
@@ -225,6 +229,8 @@ function SeatView({ pub, seat, index, isMe, offset, style, rightSide, marks }: S
   const isTurn = pub.phase === 'hand' && h !== null && h.toAct === index
   const won = result?.won[String(index)] ?? 0
   const label = result?.showdown ? result.labels[String(index)] : undefined
+  const paid = result?.bonus?.reduce((sum, b) => sum + (b.from[String(index)] ?? 0), 0) ?? 0
+  const bonusWon = result?.bonus?.find((b) => b.seat === index)?.total ?? 0
   const remaining = useRemaining(isTurn ? (h?.deadline ?? null) : null, offset)
   const fraction = remaining / pub.config.turnMs
   const busted = seat.stack === 0 && !seat.allIn && !(pub.phase === 'hand' && seat.inHand && !seat.folded)
@@ -238,7 +244,9 @@ function SeatView({ pub, seat, index, isMe, offset, style, rightSide, marks }: S
   let tag: { text: string; cls: string } | null = null
   // At a showdown the hand name takes the place of the player's name on the plate, so no tag is needed.
   const showLabel = label !== undefined && !seat.folded
-  if (showLabel) tag = null
+  if (bonusWon > 0) tag = { text: `7-2 \u200E+${bonusWon}`, cls: 't-win' }
+  else if (paid > 0) tag = { text: `7-2 \u200E-${paid}`, cls: 't-allin' }
+  else if (showLabel) tag = null
   else if (won > 0) tag = { text: `‎+${won}`, cls: 't-win' } // LRM keeps the plus sign in front inside Hebrew text
   else if (seat.leaving) tag = { text: 'עזב', cls: 't-out' }
   else if (seat.sittingOut) tag = { text: 'יושב בחוץ', cls: 't-out' }

@@ -329,7 +329,7 @@ export class LocalBackend implements HoldemBackend {
       this.state.seats.forEach((seat, i) => {
         if (!seat?.bot) return
         try {
-          if (seat.stack === 0) this.apply(seat.userId, { type: 'rebuy' })
+          if (seat.stack < (this.state.config.rebuyBelow ?? 1)) this.apply(seat.userId, { type: 'rebuy' })
           else if (this.state.phase === 'between' && this.state.hand?.result && this.state.hand.hole[String(i)] && !seat.shown && Math.random() < 0.2) {
             this.apply(seat.userId, { type: 'show' })
           }

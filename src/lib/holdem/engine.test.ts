@@ -11,6 +11,7 @@ import {
   freshDeck,
   HoldemError,
   holeByUser,
+  isSevenDeuce,
   publicView,
   scoreLabel,
   selfCheck,
@@ -453,6 +454,82 @@ describe('chips: rebuy, leaving, closing', () => {
     expect(seat(st, 0).stack).toBe(250)
     expect(seat(st, 1).stack).toBe(250)
     expect(code(() => act(st, 0, { type: 'sit_in' }))).toBe('TABLE_CLOSED')
+  })
+})
+
+describe('house rule: winning with 7-2', () => {
+  /** Seats 0..n-1 seated, the listed seats sitting out, then the first hand (button 0). */
+  function startedWithOut(n: number, out: number[], deck: string, stacks?: number[]): State {
+    let st = seated(n, stacks)
+    for (const i of out) st = applyAction(st, `u${i}`, { type: 'sit_out' }, ctx())
+    return applyAction(st, 'u0', { type: 'tick' }, ctx({ now: T0 + 60_000, deck: stacked(deck) }))
+  }
+
+  it('recognises 7-2 in any suits and nothing else', () => {
+    expect(isSevenDeuce(cards('7h 2d'))).toBe(true)
+    expect(isSevenDeuce(cards('2s 7s'))).toBe(true)
+    expect(isSevenDeuce(cards('7h 3d'))).toBe(false)
+    expect(isSevenDeuce(undefined)).toBe(false)
+  })
+
+  it('pays 40 from every seated player when 7-2 wins a showdown', () => {
+    // seat 1 gets 7h 2d, seat 0 gets Kc Qd; the board gives seat 1 a full house
+    let st = started(2, '7h 2d Kc Qd 7c 7s 2h 3d 9c')
+    st = act(st, 0, { type: 'check' })
+    st = act(st, 1, { type: 'check' })
+    for (let i = 0; i < 3; i++) {
+      st = act(st, 1, { type: 'check' })
+      st = act(st, 0, { type: 'check' })
+    }
+    const r = hand(st).result
+    expect(r?.won).toEqual({ '1': 10 })
+    expect(r?.bonus).toEqual([{ seat: 1, total: 40, from: { '0': 40 } }])
+    expect(seat(st, 1).stack).toBe(255 + 40)
+    expect(seat(st, 0).stack).toBe(245 - 40)
+    expect(totalChips(st)).toEqual({ chips: 500, bought: 500 })
+  })
+
+  it('shows the 7-2 to everybody even when nobody called', () => {
+    let st = started(2, 'As Ah 7c 2d')
+    st = act(st, 0, { type: 'raise', to: 20 })
+    st = act(st, 1, { type: 'fold' })
+    expect(hand(st).result?.bonus).toEqual([{ seat: 0, total: 40, from: { '1': 40 } }])
+    expect(publicView(st, 1).seats[0]?.cards).toEqual(cards('7c 2d'))
+    expect(seat(st, 0).stack).toBe(255 + 40)
+  })
+
+  it('everyone seated pays, also a player sitting out; short stacks pay what they have', () => {
+    // seat 2 sits out with 25 chips and is not dealt in
+    let st = startedWithOut(3, [2], 'As Ah 7c 2d', [250, 250, 25])
+    expect(Object.keys(hand(st).hole).sort()).toEqual(['0', '1'])
+    st = act(st, 0, { type: 'raise', to: 20 })
+    st = act(st, 1, { type: 'fold' })
+    expect(hand(st).result?.bonus).toEqual([{ seat: 0, total: 65, from: { '1': 40, '2': 25 } }])
+    expect(seat(st, 2).stack).toBe(0)
+    expect(seat(st, 0).stack + seat(st, 1).stack + seat(st, 2).stack).toBe(250 + 250 + 25)
+  })
+
+  it('no bonus without 7-2, and none for 7-2 that lost', () => {
+    let st = started(2, 'As Ah Kc Kd')
+    st = act(st, 0, { type: 'fold' })
+    expect(hand(st).result?.bonus).toBeUndefined()
+    st = started(2, 'As Ah 7c 2d 9c 9d 4h 5s Jc')
+    st = act(st, 0, { type: 'check' })
+    st = act(st, 1, { type: 'check' })
+    for (let i = 0; i < 3; i++) {
+      st = act(st, 1, { type: 'check' })
+      st = act(st, 0, { type: 'check' })
+    }
+    expect(hand(st).result?.won).toEqual({ '1': 10 })
+    expect(hand(st).result?.bonus).toBeUndefined()
+  })
+
+  it('allows a rebuy below 40 chips between hands, not at 40', () => {
+    let st = seated(2, [35, 250])
+    st = applyAction(st, 'u0', { type: 'rebuy' }, ctx())
+    expect(seat(st, 0)).toMatchObject({ stack: 285, bought: 500 })
+    const at40 = seated(2, [40, 250])
+    expect(code(() => applyAction(at40, 'u0', { type: 'rebuy' }, ctx()))).toBe('HAS_CHIPS')
   })
 })
 

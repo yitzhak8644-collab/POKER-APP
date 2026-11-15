@@ -35,7 +35,7 @@ const MESSAGES: Record<string, string> = {
   NOT_YOUR_TURN: 'זה לא התור שלך.',
   ILLEGAL_ACTION: 'הפעולה הזו לא אפשרית כרגע.',
   BAD_AMOUNT: 'הסכום לא תקין.',
-  HAS_CHIPS: 'ריביי אפשרי רק כשנגמרו הצ׳יפים.',
+  HAS_CHIPS: 'ריביי אפשרי רק כשנשארו פחות מ-40 צ׳יפים.',
   NOT_ALLOWED: 'אין לך הרשאה לבצע את הפעולה הזו.',
   BUSY: 'השולחן עמוס לרגע. נסו שוב.',
   SERVER_ERROR: 'תקלה בשרת המשחק. נסו שוב.',

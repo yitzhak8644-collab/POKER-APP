@@ -53,7 +53,7 @@ export function HoldemLobby({ isAdmin }: { isAdmin: boolean }) {
         </>
       ) : (
         <>
-          <p className="text-sm text-slate-400">כל אחד משחק מהטלפון שלו. כניסה 250 צ׳יפים, בליינדים 5/5, בלי כסף.</p>
+          <p className="text-sm text-slate-400">כל אחד משחק מהטלפון שלו. כניסה 250 צ׳יפים, בליינדים 5/5, בלי כסף. חוק 7-2: 40 מכל אחד.</p>
           <button
             type="button"
             className={`${btnPrimary} w-full`}

@@ -169,6 +169,10 @@ export interface Config {
   /** Pause after a showdown / after everyone folded (the "Show" window). */
   showdownMs: number
   foldWinMs: number
+  /** House rule: whoever wins a pot holding 7-2 collects this much from every seated player. */
+  sevenDeuceBonus: number
+  /** A rebuy is allowed once the stack is below this (between hands). */
+  rebuyBelow: number
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -182,6 +186,8 @@ export const DEFAULT_CONFIG: Config = {
   startMs: 4_000,
   showdownMs: 8_000,
   foldWinMs: 5_000,
+  sevenDeuceBonus: 40,
+  rebuyBelow: 40,
 }
 
 export interface Seat {
@@ -227,6 +233,22 @@ export interface HandResult {
   labels: Record<string, string>
   /** Seat index -> the five cards that play, for winners at a showdown. */
   best: Record<string, Card[]>
+  /** 7-2 house-rule payments: the winner and what every other seated player paid. */
+  bonus?: SevenDeuce[]
+}
+
+export interface SevenDeuce {
+  seat: number
+  total: number
+  /** Seat index -> chips paid. */
+  from: Record<string, number>
+}
+
+/** Seven and deuce, any suits. */
+export function isSevenDeuce(cards: readonly Card[] | undefined): boolean {
+  if (cards === undefined || cards.length !== 2) return false
+  const r = cards.map((c) => c.charAt(0)).sort().join('')
+  return r === '27'
 }
 
 export interface Hand {
@@ -641,6 +663,28 @@ function finish(st: State, ctx: Ctx, showdown: boolean): void {
       s.sitOutNext = false
     }
   }
+  // House rule: a pot won with 7-2 earns a bonus from everybody seated (whatever they have, up to the bonus).
+  // The cards are shown to the table even when nobody called.
+  const bonus = st.config.sevenDeuceBonus ?? DEFAULT_CONFIG.sevenDeuceBonus
+  if (bonus > 0) {
+    for (const key of Object.keys(result.won)) {
+      const w = Number(key)
+      if ((result.won[key] ?? 0) <= 0 || !isSevenDeuce(h.hole[key])) continue
+      const winner = mustSeat(st, w)
+      const entry: SevenDeuce = { seat: w, total: 0, from: {} }
+      st.seats.forEach((s, i) => {
+        if (s === null || i === w) return
+        const pay = Math.min(bonus, s.stack)
+        if (pay <= 0) return
+        s.stack -= pay
+        entry.from[String(i)] = pay
+        entry.total += pay
+      })
+      winner.stack += entry.total
+      winner.shown = true
+      ;(result.bonus ??= []).push(entry)
+    }
+  }
   h.result = result
   st.phase = 'between'
   st.nextAt = ctx.now + (showdown ? st.config.showdownMs : st.config.foldWinMs)
@@ -807,7 +851,7 @@ export function applyAction(state: State, userId: string, action: Action, ctx: C
     }
 
     case 'rebuy': {
-      if (s.stack > 0) fail('HAS_CHIPS')
+      if (s.stack >= (st.config.rebuyBelow ?? 1)) fail('HAS_CHIPS')
       if (st.phase === 'hand' && s.inHand && !s.folded) fail('ILLEGAL_ACTION')
       s.stack += st.config.buyin
       s.bought += st.config.buyin
