@@ -5,6 +5,7 @@ import { RequireAuth } from './features/auth/RequireAuth'
 import { isSupabaseConfigured } from './lib/supabase'
 import { BalancePage } from './pages/BalancePage'
 import { GamePage } from './pages/GamePage'
+import { HoldemPage } from './pages/HoldemPage'
 import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
@@ -22,10 +23,14 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* Development only: the practice table without signing in. */}
+            {import.meta.env.DEV && <Route path="/dev/holdem" element={<HoldemPage practice />} />}
             <Route element={<RequireAuth />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/balance" element={<BalancePage />} />
               <Route path="/g/:id" element={<GamePage />} />
+              <Route path="/holdem/practice" element={<HoldemPage practice />} />
+              <Route path="/holdem/:id" element={<HoldemPage />} />
               <Route path="/join/:code" element={<JoinPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

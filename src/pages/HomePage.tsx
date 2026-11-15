@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { PayBoxLink } from '../components/PayBoxLink'
 import { Avatar, Badge, btnPrimary, btnSecondary } from '../components/ui'
 import { useAuth } from '../features/auth/AuthProvider'
+import { HoldemLobby } from '../features/holdem/HoldemLobby'
 import { NotificationPrompt } from '../features/push/NotificationPrompt'
 import { createGame, joinOpenGame } from '../features/games/api'
 import { MY_GAMES_KEY, MY_PLAYER_KEY, OPEN_GAMES_KEY, useIsAdmin, useMyGames, useMyPlayerGameIds, useOpenGames } from '../features/games/hooks'
@@ -123,6 +124,8 @@ export function HomePage() {
           </p>
         )}
       </section>
+
+      <HoldemLobby isAdmin={isAdmin} />
 
       <section className="space-y-2">
         <h2 className="font-bold">{isAdmin ? 'כל המשחקים' : 'המשחקים שלי'}</h2>
