@@ -3,6 +3,7 @@ import { ChipLegend } from '../../components/ChipStack'
 import { Avatar, Badge, btnSecondary, Money } from '../../components/ui'
 import type { GamePlayerRow } from '../games/types'
 import { ROLE_LABEL } from './labels'
+import { MoneyLine } from './MoneyLine'
 
 interface Props {
   result: GameResult
@@ -50,6 +51,7 @@ export function TablePanel({ result, seats, canWrite, onBuyIn, onRebuy }: Props)
                 </div>
               )}
             </div>
+            <MoneyLine p={p} />
           </li>
         ))}
       </ul>

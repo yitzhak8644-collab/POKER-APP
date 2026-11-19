@@ -6,6 +6,7 @@ import { PayBoxLink } from '../../components/PayBoxLink'
 import { Avatar, btnDanger, btnPrimary, btnSecondary, inputCls, Money } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
 import { ChipCounterDialog } from './ChipCounter'
+import { CashOutRemaining, MoneyLine } from './MoneyLine'
 import type { GameBundle, TransactionRow } from '../games/types'
 
 interface Props {
@@ -71,17 +72,13 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
                       הכניס <Money value={p.invested} />
                     </div>
                   </div>
-                  {p.cashOut !== null ? (
+                  {p.cashOut !== null && (
                     <div className="text-end">
+                      <div className="text-xs text-slate-400">יצא עם</div>
                       <div className="font-semibold">
                         <Money value={p.cashOut} />
                       </div>
-                      <div className={`text-xs ${(p.net ?? 0) < 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
-                        פוקר <Money value={p.net ?? 0} signed />
-                      </div>
                     </div>
-                  ) : (
-                    isOpen && <CashOutForm playerName={p.name} onSave={(amount, note) => onCashOut(p.id, amount, note)} />
                   )}
                   {p.cashOut !== null && isOpen && isOwner && entered && (
                     <button
@@ -94,10 +91,18 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
                     </button>
                   )}
                 </div>
+                {/* The chips box sits on its own line so it never hides the player's name. */}
+                {p.cashOut === null && isOpen && (
+                  <div className="mt-2">
+                    <CashOutForm playerName={p.name} onSave={(amount, note) => onCashOut(p.id, amount, note)} />
+                  </div>
+                )}
+                <MoneyLine p={p} />
               </li>
             )
           })}
         </ul>
+        {result.players.length > 0 && <CashOutRemaining check={result.check} />}
         {voiding.error !== null && (
           <p role="alert" className="text-sm text-rose-400">
             {voiding.error}
@@ -108,19 +113,13 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
       {result.players.every((p) => p.obligation !== null) && result.players.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-bold">חשבון לכל שחקן</h2>
-          <p className="text-xs text-slate-400">פוקר − דמי כניסה (10 ₪, מארח 5 ₪){result.fees.hasHost ? ' + דמי אירוח למארח' : ''}</p>
+          <p className="text-xs text-slate-400">פוקר + קופה ואירוח (אורח 10 ₪; המארח משלם 5 ומקבל את דמי האירוח)</p>
           <ul className="space-y-2">
             {result.players.map((p) => (
               <li key={p.id} className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-3 text-sm">
                 <span className="flex-1 font-semibold">{p.name}</span>
                 <span className="text-slate-400">
-                  <Money value={p.net ?? 0} signed /> · <Money value={-p.entryFee} signed />
-                  {p.hostPayout > 0 && (
-                    <>
-                      {' · '}
-                      <Money value={p.hostPayout} signed />
-                    </>
-                  )}
+                  <Money value={p.net ?? 0} signed /> · <Money value={p.hostPayout - p.entryFee} signed />
                 </span>
                 <span className={`font-bold ${(p.obligation ?? 0) < 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
                   = <Money value={p.obligation ?? 0} signed />
@@ -263,7 +262,7 @@ function CashOutForm({ playerName, onSave }: { playerName: string; onSave: (amou
           inputMode="numeric"
           dir="ltr"
           placeholder="צ׳יפים"
-          className={`${inputCls} font-num w-24`}
+          className={`${inputCls} font-num min-w-0 flex-1`}
           value={text}
           onChange={(e) => setText(e.target.value.replace(/\D/g, ''))}
         />
