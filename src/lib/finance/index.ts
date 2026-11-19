@@ -23,8 +23,13 @@ export interface GameResult {
   check: ZeroSumCheck
   fees: Fees
   players: PlayerResult[]
-  /** `true` only when zero-sum is `ok` and there are no roster errors. */
+  /** `true` when zero-sum is `ok` or `near` (gap within CLOSE_TOLERANCE) and there are no roster errors. */
   ready: boolean
+  /**
+   * What the group fund actually ends up with: the entry fees minus the counting gap
+   * (1 NIS too much cashed out -> 1 NIS less to the fund). Equals fees.groupFund when the balance is exact.
+   */
+  fund: number
   /** Empty unless `ready`. */
   transfers: Transfer[]
   /** WhatsApp text; `null` unless `ready`. */
@@ -49,22 +54,24 @@ export function computeGame(players: readonly Player[], date: Date): GameResult 
   const fees = computeFees(players)
   const results = players.map((p) => playerResult(p, fees))
   const pot = check.totalInvested
-  const ready = check.status === 'ok' && fees.errors.length === 0
+  const ready = (check.status === 'ok' || check.status === 'near') && fees.errors.length === 0
+  const fund = fees.groupFund - (check.status === 'near' ? check.diff : 0)
   if (!ready) {
-    return { pot, check, fees, players: results, ready, transfers: [], summary: null }
+    return { pot, check, fees, fund: fees.groupFund, players: results, ready, transfers: [], summary: null }
   }
 
   const settled = results.filter(isSettled)
   const transfers = settle(
     settled.map((r) => ({ id: r.id, amount: r.obligation })),
-    fees.groupFund,
+    fund,
   )
   const summary = buildWhatsAppSummary({
     date,
     pot,
-    groupFund: fees.groupFund,
+    groupFund: fund,
+    gap: check.diff,
     players: settled,
     transfers,
   })
-  return { pot, check, fees, players: results, ready, transfers, summary }
+  return { pot, check, fees, fund, players: results, ready, transfers, summary }
 }

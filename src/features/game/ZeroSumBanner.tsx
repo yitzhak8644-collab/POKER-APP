@@ -28,6 +28,12 @@ export function ZeroSumBanner({ result }: { result: GameResult }) {
           {check.diff > 0 ? 'סך ה-Cash-out גבוה מסך הכניסות' : 'סך ה-Cash-out נמוך מסך הכניסות'}
         </div>
       )}
+      {check.status === 'near' && (
+        <div className="rounded-xl border border-amber-600 bg-amber-950 p-3 text-sm font-semibold text-amber-200">
+          פער קטן של <Money value={Math.abs(check.diff)} /> ({check.diff > 0 ? 'יצא יותר ממה שנכנס' : 'יצא פחות ממה שנכנס'}). אפשר לסגור, והפער נספג
+          בקופה.
+        </div>
+      )}
       {check.status === 'ok' && result.players.length > 0 && (
         <div className="rounded-xl border border-emerald-600 bg-emerald-950 p-3 text-sm text-emerald-200">
           ✓ המאזן מתאפס: סך ה-Cash-out שווה לסך הכניסות (<Money value={result.pot} />)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { GameResult } from '../../lib/finance'
+import { CLOSE_TOLERANCE, type GameResult } from '../../lib/finance'
 import { CHIPS_PER_NIS, chipsToNis } from '../../lib/chips'
 import { Dialog } from '../../components/Dialog'
 import { PayBoxLink } from '../../components/PayBoxLink'
@@ -14,6 +14,8 @@ interface Props {
   result: GameResult
   /** Table manager (game owner). */
   isOwner: boolean
+  /** A player sitting at this table: may close it too once everything is in (gap of up to 2 NIS allowed). */
+  isPlayer?: boolean
   isAdmin?: boolean
   /** `note` lists the chips when the amount was counted with the chip counter. */
   onCashOut: (playerId: string, amount: number, note?: string) => Promise<void>
@@ -31,7 +33,8 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCashOut, onVoid, onCloseGame }: Props) {
+export function SettlementPanel({ bundle, result, isOwner, isPlayer = false, isAdmin = false, onCashOut, onVoid, onCloseGame }: Props) {
+  const canClose = isOwner || isPlayer
   const isOpen = bundle.game.status === 'open'
   const [confirming, setConfirming] = useState(false)
   const [forcing, setForcing] = useState(false)
@@ -130,12 +133,18 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
         </section>
       )}
 
-      {result.ready ? (
+      {result.ready || (!isOpen && text) ? (
         <>
           <section className="space-y-2">
             <h2 className="font-bold">קופה קבוצתית</h2>
             <p className="text-sm text-slate-400">
-              קופה קבוצתית שנאספה: <Money value={result.fees.groupFund} />
+              קופה קבוצתית שנאספה: <Money value={result.ready ? result.fund : result.fees.groupFund} />
+              {result.ready && result.fund !== result.fees.groupFund && (
+                <>
+                  {' '}
+                  (דמי כניסה <Money value={result.fees.groupFund} />; פער בספירה של <Money value={Math.abs(result.check.diff)} /> נספג בקופה)
+                </>
+              )}
             </p>
             <p className="text-sm text-slate-300">תשלומים לקופה בקבוצת ה-PayBox:</p>
             <PayBoxLink />
@@ -162,12 +171,16 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
           </section>
         </>
       ) : (
-        isOpen && <p className="text-sm text-slate-400">ההעברות וההודעה יופיעו אחרי שלכל השחקנים יוזן Cash-out והמאזן יתאפס.</p>
+        isOpen && (
+          <p className="text-sm text-slate-400">
+            ההעברות וההודעה יופיעו אחרי שלכל השחקנים יוזן Cash-out והמאזן יתאפס (פער של עד {CLOSE_TOLERANCE} ₪ מותר ונספג בקופה).
+          </p>
+        )
       )}
 
       {isOpen && (
         <section className="space-y-2 border-t border-slate-800 pt-4">
-          {isOwner ? (
+          {canClose ? (
             <>
               <button
                 type="button"
@@ -195,13 +208,13 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
               )}
               {!result.ready && (
                 <p className="text-sm text-slate-400">
-                  אפשר לסגור רק כשהמאזן מתאפס ואין שגיאות בהגדרות.
+                  אפשר לסגור כשלכולם הוזן Cash-out, הפער הוא עד {CLOSE_TOLERANCE} ₪ ואין שגיאות בהגדרות.
                   {isAdmin ? ' כמנהל כללי אפשר לסגור גם בלי איזון.' : ''}
                 </p>
               )}
             </>
           ) : (
-            <p className="text-sm text-slate-400">רק מנהל השולחן יכול לסגור את המשחק.</p>
+            <p className="text-sm text-slate-400">רק מי שמשחק בשולחן (או מנהל השולחן) יכול לסגור את המשחק.</p>
           )}
         </section>
       )}
@@ -209,7 +222,7 @@ export function SettlementPanel({ bundle, result, isOwner, isAdmin = false, onCa
       <Dialog open={confirming} onClose={() => { setConfirming(false); setForcing(false) }} title={forcing ? 'לסגור בכוח, בלי איזון?' : 'לסגור את המשחק?'} tone="danger">
         <p className="text-sm text-slate-300">
           לאחר הסגירה אי אפשר לשנות כניסות, Cash-out או תפקידים. סיכום המשחק יישמר: קופה{' '}
-          <Money value={result.pot} />, קופה קבוצתית <Money value={result.fees.groupFund} />, {result.transfers.length} העברות.
+          <Money value={result.pot} />, קופה קבוצתית <Money value={result.ready ? result.fund : result.fees.groupFund} />, {result.transfers.length} העברות.
         </p>
         {closing.error !== null && (
           <p role="alert" className="text-sm text-rose-400">

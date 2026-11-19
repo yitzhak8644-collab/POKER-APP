@@ -1,3 +1,4 @@
+import { CLOSE_TOLERANCE } from './config'
 import { sum } from './money'
 import type { Player, ZeroSumCheck } from './types'
 
@@ -9,7 +10,8 @@ export function playerNet(p: Player): number | null {
 /**
  * Zero-sum validation: SUM(net balances) must be exactly 0.
  * - `incomplete`: some cash-outs are still missing (a cash-out of 0 is NOT missing).
- * - `mismatch`:   everyone entered a cash-out but total in != total out.
+ * - `near`:       everyone entered a cash-out and the gap is at most CLOSE_TOLERANCE (either way).
+ * - `mismatch`:   everyone entered a cash-out and the gap is bigger than that.
  * - `ok`:         total cash-out == total invested.
  */
 export function validateZeroSum(players: readonly Player[]): ZeroSumCheck {
@@ -18,6 +20,12 @@ export function validateZeroSum(players: readonly Player[]): ZeroSumCheck {
   const missingCashOuts = players.filter((p) => p.cashOut === null).map((p) => p.id)
   const diff = totalCashOut - totalInvested
   const status =
-    missingCashOuts.length > 0 ? 'incomplete' : diff === 0 ? 'ok' : 'mismatch'
+    missingCashOuts.length > 0
+      ? 'incomplete'
+      : diff === 0
+        ? 'ok'
+        : Math.abs(diff) <= CLOSE_TOLERANCE
+          ? 'near'
+          : 'mismatch'
   return { status, diff, totalInvested, totalCashOut, missingCashOuts }
 }

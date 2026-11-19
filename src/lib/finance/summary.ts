@@ -8,6 +8,8 @@ export interface SummaryInput {
   /** Total money put into the game (buy-ins + rebuys). */
   pot: number
   groupFund: number
+  /** Counting gap absorbed by the group fund (cash-out minus buy-ins); 0 or missing when exact. */
+  gap?: number
   players: readonly SettledPlayer[]
   transfers: readonly Transfer[]
 }
@@ -54,5 +56,11 @@ export function buildWhatsAppSummary(input: SummaryInput): string {
   section('פלוס:', winners)
   section('מינוס:', losers)
   section('מאוזן:', even)
+  const gap = input.gap ?? 0
+  if (gap !== 0) {
+    const amount = `${LRM}${Math.abs(gap)}${NBSP}₪${LRM}`
+    const what = gap > 0 ? `יצא ${amount} יותר ממה שנכנס` : `יצא ${amount} פחות ממה שנכנס`
+    lines.push('', `${RLM}_פער בספירה: ${what}. הפער נספג בקופה._`)
+  }
   return lines.join('\n')
 }

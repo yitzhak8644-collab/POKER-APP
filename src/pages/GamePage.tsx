@@ -230,6 +230,7 @@ export function GamePage() {
           bundle={bundle}
           result={result}
           isOwner={isOwner}
+          isPlayer={bundle.players.some((p) => p.user_id !== null && p.user_id === session?.user.id)}
           onCashOut={(playerId, amount, note) => actions.addTransaction({ gameId: id, playerId, type: 'cash_out', amount, note })}
           onVoid={actions.voidTransaction}
           isAdmin={isAdmin}

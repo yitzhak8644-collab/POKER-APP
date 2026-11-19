@@ -13,7 +13,8 @@ export interface Player {
   cashOut: number | null
 }
 
-export type ZeroSumStatus = 'incomplete' | 'ok' | 'mismatch'
+/** `near`: everyone cashed out and the gap is within CLOSE_TOLERANCE (closable; the fund absorbs it). */
+export type ZeroSumStatus = 'incomplete' | 'ok' | 'near' | 'mismatch'
 
 export interface ZeroSumCheck {
   status: ZeroSumStatus

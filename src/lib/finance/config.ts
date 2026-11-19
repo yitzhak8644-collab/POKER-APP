@@ -6,6 +6,11 @@ export const GUEST_FUND_SHARE = 5
 export const GUEST_HOST_FEE = 5
 /** Host / host's spouse (when a host exists): pay only this much, all of it to the group fund. */
 export const HOST_SIDE_FUND = 5
+/**
+ * A counting gap of up to this many NIS (either way) still lets the table close normally.
+ * The gap is absorbed by the group fund. Must match public.close_game.
+ */
+export const CLOSE_TOLERANCE = 2
 /** Fixed id of the virtual group-fund node used when settling. Never a valid player id. */
 export const PAYBOX_ID = '@@paybox@@'
 /** Display name of the group fund in transfer instructions. */

@@ -1,4 +1,4 @@
-import type { PlayerResult, ZeroSumCheck } from '../../lib/finance'
+import { CLOSE_TOLERANCE, type PlayerResult, type ZeroSumCheck } from '../../lib/finance'
 import { Money } from '../../components/ui'
 
 const tone = (v: number): string => (v < 0 ? 'text-rose-300' : v > 0 ? 'text-emerald-300' : 'text-slate-300')
@@ -42,6 +42,13 @@ export function CashOutRemaining({ check }: { check: ZeroSumCheck }) {
     return (
       <p className="rounded-xl border border-emerald-700 bg-emerald-950 p-3 text-sm font-semibold text-emerald-200">
         ✓ הכול הוזן: סך ה-Cash-out שווה לסך הכניסות
+      </p>
+    )
+  }
+  if (missing === 0 && Math.abs(left) <= CLOSE_TOLERANCE) {
+    return (
+      <p className="rounded-xl border border-amber-700 bg-amber-950/60 p-3 text-sm font-semibold text-amber-200">
+        הכול הוזן, עם פער קטן של <Money value={Math.abs(left)} />. אפשר לסגור, והפער נספג בקופה.
       </p>
     )
   }

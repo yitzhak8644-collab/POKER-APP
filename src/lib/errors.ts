@@ -17,7 +17,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_ROSTER:
     'הגדרות המארח לא תקינות: לכל היותר מארח אחד ובן/בת זוג אחד, ובן/בת זוג דורשים מארח.',
   MISSING_CASH_OUT: 'חסר Cash-out לחלק מהשחקנים.',
-  ZERO_SUM_MISMATCH: 'סך ה-Cash-out לא שווה לסך הכניסות. יש לתקן לפני הסגירה.',
+  ZERO_SUM_MISMATCH: 'הפער בין סך ה-Cash-out לסך הכניסות גדול מ-2 ₪. יש לתקן לפני הסגירה.',
   INVALID_SNAPSHOT: 'סיכום המשחק לא תקין.',
   OPEN_GAME_EXISTS: 'כבר יש שולחן פתוח. אפשר להצטרף אליו.',
   NOT_ADMIN: 'הפעולה הזו שמורה למנהל הכללי.',
