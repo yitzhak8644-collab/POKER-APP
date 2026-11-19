@@ -139,7 +139,7 @@ export function StatsPage() {
               </dl>
             )}
           </section>
-          <p className="text-xs text-slate-500">היתרה מקבוצת הפייבוקס הישנה לא נכללת כאן, כי אין בה פירוט לפי ערב.</p>
+          <p className="text-xs text-slate-500">היתרה מקבוצת הפייבוקס הישנה ומשחקים שנרשמו מחוץ לאפליקציה לא נכללים כאן.</p>
         </>
       )}
     </main>

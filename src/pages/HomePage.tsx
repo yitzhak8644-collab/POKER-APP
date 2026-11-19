@@ -57,6 +57,9 @@ export function HomePage() {
         <Link to="/stats" className={`${btnSecondary} block text-center`}>
           📈 הסטטיסטיקה שלי
         </Link>
+        <Link to="/history" className={`${btnSecondary} col-span-2 block text-center`}>
+          📜 היסטוריית משחקים
+        </Link>
       </div>
 
       <PayBoxLink />

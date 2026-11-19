@@ -22,7 +22,7 @@ function Row({ r, rank }: { r: BalanceRow; rank?: number }) {
           {r.last_played !== null && <> · אחרון {formatGameDate(r.last_played)}</>}
         </p>
         <p className="text-xs text-slate-500">
-          לפני האפליקציה <Money value={r.opening} signed /> · באפליקציה <Money value={r.app_total} signed />
+          מחוץ לאפליקציה <Money value={r.opening} signed /> · באפליקציה <Money value={r.app_total} signed />
         </p>
       </div>
       <Money value={r.total} signed className={`text-lg font-bold ${tone(r.total)}`} />
@@ -128,7 +128,7 @@ function MyBalance({ loading, error, row }: { loading: boolean; error: unknown; 
           </p>
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-slate-950 p-3">
-              <dt className="text-xs text-slate-500">לפני האפליקציה</dt>
+              <dt className="text-xs text-slate-500">מחוץ לאפליקציה</dt>
               <dd className="mt-1 font-bold">
                 <Money value={row.opening} signed />
               </dd>
