@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { GameResult, Role } from '../../lib/finance'
-import { Avatar, Badge, btnPrimary, btnSecondary, inputCls } from '../../components/ui'
+import { Dialog } from '../../components/Dialog'
+import { Avatar, Badge, btnDanger, btnPrimary, btnSecondary, inputCls, Money } from '../../components/ui'
 import { useAction } from '../../hooks/useAction'
 import type { GameBundle } from '../games/types'
 import { ROLE_LABEL } from './labels'
@@ -10,8 +11,11 @@ interface Props {
   result: GameResult
   /** Table manager of an open game. */
   canManage: boolean
+  /** General admin: may also remove a player who already has entries (they are deleted with the player). */
+  isAdmin?: boolean
   onAddPlayer: (name: string, role?: Role) => Promise<void>
   onRemovePlayer: (id: string) => Promise<void>
+  onAdminRemovePlayer?: (id: string) => Promise<void>
   onSetRole: (id: string, role: Role) => Promise<void>
 }
 
@@ -24,8 +28,22 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function SettingsPanel({ bundle, result, canManage, onAddPlayer, onRemovePlayer, onSetRole }: Props) {
+export function SettingsPanel({
+  bundle,
+  result,
+  canManage,
+  isAdmin = false,
+  onAddPlayer,
+  onRemovePlayer,
+  onAdminRemovePlayer,
+  onSetRole,
+}: Props) {
   const { run, busy, error } = useAction()
+  const removing = useAction()
+  const [toRemove, setToRemove] = useState<string | null>(null)
+  const removeTarget = toRemove === null ? null : (bundle.players.find((p) => p.id === toRemove) ?? null)
+  const removeTx = toRemove === null ? [] : bundle.transactions.filter((t) => t.player_id === toRemove && t.voided_at === null)
+  const removeResult = result.players.find((p) => p.id === toRemove) ?? null
   const [name, setName] = useState('')
   const [copied, setCopied] = useState(false)
   const code = bundle.game.join_code
@@ -101,15 +119,29 @@ export function SettingsPanel({ bundle, result, canManage, onAddPlayer, onRemove
                     >
                       בן/בת זוג של המארח
                     </button>
-                    <button
-                      type="button"
-                      disabled={busy || hasLedger}
-                      title={hasLedger ? 'אי אפשר להסיר שחקן שיש לו רישומים' : undefined}
-                      className={`${btnSecondary} ms-auto`}
-                      onClick={() => void run(() => onRemovePlayer(p.id))}
-                    >
-                      הסר
-                    </button>
+                    {hasLedger && isAdmin && onAdminRemovePlayer ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className={`${btnSecondary} ms-auto text-rose-300`}
+                        onClick={() => {
+                          removing.clearError()
+                          setToRemove(p.id)
+                        }}
+                      >
+                        הסר (מנהל)
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy || hasLedger}
+                        title={hasLedger ? 'אי אפשר להסיר שחקן שיש לו רישומים' : undefined}
+                        className={`${btnSecondary} ms-auto`}
+                        onClick={() => void run(() => onRemovePlayer(p.id))}
+                      >
+                        הסר
+                      </button>
+                    )}
                   </div>
                 )}
               </li>
@@ -148,6 +180,47 @@ export function SettingsPanel({ bundle, result, canManage, onAddPlayer, onRemove
           </p>
         )}
       </section>
+
+      <Dialog open={removeTarget !== null} onClose={() => setToRemove(null)} title={`להסיר את ${removeTarget?.display_name ?? ''} מהשולחן?`} tone="danger">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">
+            השחקן יוסר מהשולחן הזה בלבד, ואיתו יימחקו כל {removeTx.length} הרישומים שלו (Buy-in, Rebuy ו-Cash-out). המאזן של השולחן יתעדכן כאילו
+            הוא לא שיחק. אי אפשר לשחזר.
+          </p>
+          {removeResult && (
+            <p className="rounded-xl bg-slate-950 p-3 text-sm">
+              הכניס <Money value={removeResult.invested} />
+              {removeResult.cashOut !== null && (
+                <>
+                  {' · '}Cash-out <Money value={removeResult.cashOut} />
+                </>
+              )}
+            </p>
+          )}
+          {removing.error !== null && (
+            <p role="alert" className="text-sm text-rose-400">
+              {removing.error}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button type="button" className={`${btnSecondary} flex-1`} onClick={() => setToRemove(null)}>
+              ביטול
+            </button>
+            <button
+              type="button"
+              className={`${btnDanger} flex-1`}
+              disabled={removing.busy}
+              onClick={async () => {
+                if (toRemove === null || !onAdminRemovePlayer) return
+                const r = await removing.run(() => onAdminRemovePlayer(toRemove))
+                if (r.ok) setToRemove(null)
+              }}
+            >
+              {removing.busy ? 'מסיר…' : 'כן, הסר'}
+            </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   )
 }

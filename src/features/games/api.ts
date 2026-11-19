@@ -110,6 +110,12 @@ export async function removePlayer(playerId: string): Promise<void> {
   unwrap<null>({ data: null, error: result.error })
 }
 
+/** General admin only, open table only: removes the player together with all of their entries. */
+export async function adminRemovePlayer(playerId: string): Promise<void> {
+  const result = await getSupabase().rpc('admin_remove_player', { p_player_id: playerId })
+  unwrap<null>({ data: null, error: result.error })
+}
+
 /** Atomic: making X the host demotes the current host (same for the spouse). */
 export async function setPlayerRole(playerId: string, role: Role): Promise<void> {
   const result = await getSupabase().rpc('set_player_role', { p_player_id: playerId, p_role: role })

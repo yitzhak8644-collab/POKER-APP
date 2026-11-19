@@ -218,8 +218,10 @@ export function GamePage() {
           bundle={bundle}
           result={result}
           canManage={isOwner && isOpen}
+          isAdmin={isAdmin}
           onAddPlayer={actions.addPlayer}
           onRemovePlayer={actions.removePlayer}
+          onAdminRemovePlayer={actions.adminRemovePlayer}
           onSetRole={actions.setPlayerRole}
         />
       )}
